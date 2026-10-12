@@ -42,6 +42,8 @@
 
 **验证重点：** 同质量要求下的长上下文任务表现、Prefill时间、Decode延迟和实际KV占用；消融时分别控制窗口、head数、门控和MTP。
 
+**Gate论文证据补充。** Gated Attention Table 1在15B总参数、约2.54B激活的MoE训练400B tokens后，无Gate与head-wise输出Gate对照的平均PPL为6.026→5.792，MMLU为58.79→60.05；增加约160万参数。该实验为GQA，不能作为Step普通SWA对比Gated SWA的实测结论。其价值是输入相关的输出抑制与非线性；已有Ascend Step patch可复用，专项融合优化应以profiling为依据。详见[推理特性详解中的Gated SWA章节](06A-推理特性详解与竞争力评估.md#3-gated-swa控制局部注意力的信息注入)及[论文Table 1](https://papers.neurips.cc/paper_files/paper/2025/file/904e89bb4e632e75fb47f093b620b257-Paper-Conference.pdf)。
+
 ## 4. AFD：Attention与FFN分池执行
 
 **说明。** AFD是Attention-FFN Disaggregation。Attention池持有请求/KV，FFN池执行dense FFN或MoE；跨多个Attention实例汇聚兼容的FFN工作，可提高专家有效batch，并分别配置两侧设备与并行拓扑。它与Prefill/Decode分离、DBO计算通信重叠解决的问题不同，可以按后端条件组合。
