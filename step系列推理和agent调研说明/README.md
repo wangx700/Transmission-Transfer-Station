@@ -37,3 +37,8 @@
 ## Step-3 与 StepAudio 3 新增专题
 
 - [推理与Agent技术专题：五份技术文档与流程图](https://github.com/wangx700/Transmission-Transfer-Station/blob/main/step%E7%B3%BB%E5%88%97%E6%8E%A8%E7%90%86%E5%92%8Cagent%E8%B0%83%E7%A0%94%E8%AF%B4%E6%98%8E/Step3%E4%B8%8EStepAudio3%E6%8A%80%E6%9C%AF%E4%B8%93%E9%A2%98/README.md)
+
+
+## Audio3 Gen / Music机制与昇腾专项补充
+
+- [05-Audio3 Gen与Music：机制优势、参考实现与昇腾工程投入](核心技术报告/05-Audio3Gen与Music机制优势及昇腾工程投入.md)：详细解释时间–码本深度分工与计划–AR–渲染分工，附接口流程图、代码证据、模块适配清单及分阶段投入建议。
