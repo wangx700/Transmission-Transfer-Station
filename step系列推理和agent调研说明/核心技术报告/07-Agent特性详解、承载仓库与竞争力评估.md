@@ -158,3 +158,38 @@ Adaptive Thinking负责是否投入显式推理；MTP加速私有推理流；TWS
 | TWS/全双工/工具 | 首音、首个有效回答、最终正确结论、纠正率 | 相同问题、回答质量、网络/音频条件 | 首音快就认为正确结论更快 |
 
 当前建议先研究Step-Code的结果交付、Goal恢复、压缩完整性与工具契约，再把CLM作为单项可关闭策略验证。需要研究任务时参考StepDeepResearch；有真实设备需求时接gelab-zero；有明确语音交互需求时再接TWS与全双工。对昇腾自动调优，优先建立设备/端口/进程租约、实验记录和验收门禁，这些是迁移建议，不将其归为Step-Code已具备的全部能力。
+
+## 8. Step-Code近期做了什么：按提交历史核验
+
+核验依据为公开commit及合入记录，重点变化是CLM默认化、后台子Agent结果交付与Ultracode状态管理。多数属于已有机制的完善，不能全部称为新技术。当前[CHANGELOG](https://github.com/stepfun-ai/Step-Code/blob/main/CHANGELOG.md)将部分调整列在Unreleased下；主分支合入不等于安装包已发布，使用前需核对版本。
+
+表注：近期范围为2026-09-24至2026-10-12，北京时间。日期对应相关提交或合入；跨日UTC记录换算到北京时间。它不是技术首次提出时间，也不是统一发布日。“承载组件”独立说明实现层次；参考固定到提交。
+
+| 技术/特性 | 提交或合入时间 | 近期变化 | 承载组件 | 技术价值与参考 |
+|---|---|---|---|---|
+| 模型管理的CLM默认化 | 10月11日合入 | 默认采用工作视图编辑；保留原始历史、校验编辑并保留原生压缩回退 | 上下文维护、会话持久化 | 长日志任务值得优先消融；属于默认策略调整，不是首次发明CLM。[合入](https://github.com/stepfun-ai/Step-Code/commit/bd42141a2077bba8db7cef942929b1fe758a5ce4)、[功能提交](https://github.com/stepfun-ai/Step-Code/commit/baa1ef8e72786aea04ab0d4bc39699f3538ecb26) |
+| 后台子Agent事件驱动交付 | 10月9—10日 | 完成/失败/需要输入事件唤醒主Agent；进度通知避免积压及反复触发模型调用 | subagent后台lane、事件通知、主会话 | 修复子任务完成但主任务仍等待的问题。[唤醒](https://github.com/stepfun-ai/Step-Code/commit/01af3937c56edfe9225cf137d11862f9c585c9fd)、[积压修复](https://github.com/stepfun-ai/Step-Code/commit/9fbc37f57decb2e342e6d0e984dbfa6a07d2dae9) |
+| 子任务结果与状态契约修复 | 10月9—10日 | 链式任务返回最终结果或停止步骤错误，增加queued/skipped；后台结果上限2000→50000字符 | 子任务执行链、结果记录、最终通知 | 防止只收到第一步或截断报告；不是无限完整结果保证。[链式结果](https://github.com/stepfun-ai/Step-Code/commit/49e42afd8343728d53f1169d2eac8973a806d6c7)、[结果上限](https://github.com/stepfun-ai/Step-Code/commit/bd87c0c214909173f5e96d255ee947ca89514fe9) |
+| Ultracode会话状态持久化 | 10月12日 | on/off写入当前会话journal，重开恢复；新会话默认关闭 | workflow扩展、会话journal、状态栏 | 明确编排恢复范围，不修改全局或项目设置。[提交](https://github.com/stepfun-ai/Step-Code/commit/579772281f26ab37d839c3b76c1ac12395620225) |
+| Ultracode上下文提示去重 | 10月12日 | 不再每轮重复教程；状态变化时提示，上下文压缩/替换后协调必要状态 | workflow提示、provider请求上下文 | 减少提示冗余，保持模式一致；暂无独立性能数字。[提交](https://github.com/stepfun-ai/Step-Code/commit/b84d7e82f1e850cc729c17dc20cf1bd39569f523) |
+| 文件修改后验证then_run | 10月1日 | edit_file/write_file增加后续验证执行能力 | 文件编辑工具 | 衔接修改与检查；不代表验证充分或修改自动回滚。[提交](https://github.com/stepfun-ai/Step-Code/commit/a5c8839a) |
+| 压缩溢出恢复与结果保留 | 9月26—28日 | 修复上下文保护、摘要溢出重试和最终工具结果边界 | compaction、工具结果处理 | 长任务可靠性基础；需验关键状态未丢失。[溢出重试](https://github.com/stepfun-ai/Step-Code/commit/13a190ad)、[上下文保护](https://github.com/stepfun-ai/Step-Code/commit/4686fefa) |
+| 插件/MCP发现与环境修复 | 9月28—30日 | 完善工具目录刷新、插件Skills/命令加载、MCP发现和stdio环境约束 | 插件加载、MCP目录、子进程 | 提高扩展可用性，属于集成完善。[插件发现](https://github.com/stepfun-ai/Step-Code/commit/bda152e0)、[环境约束](https://github.com/stepfun-ai/Step-Code/commit/466e4377) |
+
+### 8.1 CLM近期变化：成为默认维护策略
+
+接口链是`上下文压力检查 → 索引可编辑旧正文 → 模型提出替换 → 宿主校验 → 保存工作视图 → 后续调用使用新视图`。近期改动还处理显式关闭设置、关闭自动压缩、结束回答后不执行无用维护，以及失败/溢出时原生压缩恢复。完整机制见3.1节。
+
+竞争力应比较包含维护调用及缓存影响的净成本，并确保约束和证据没有被误删；“默认启用”不构成收益证明。对自动调优，重点保留精度门槛、已验证最优配置、未解决失败和日志索引。
+
+### 8.2 子Agent近期变化：可靠唤醒与结果交付
+
+接口链是`主任务分派 → 后台子任务执行 → 普通进度随上下文回流 → 完成/失败/需要输入事件唤醒 → 主Agent读取结果继续`。通知若进入队列后逐条消化，旧进度可能挡住完成事件；每条进度都触发模型也会造成重复调用。近期修复将普通进度与需要续跑的终态事件区别处理。
+
+另一类修复处理结果内容：成功链返回最后步骤产物，失败链返回停止原因及最后完成结果，未启动步骤标为queued或skipped。结果上限提升降低截断风险，但超过上限的内容仍须外部产物/日志入口。对多NPU调优，借鉴价值是状态和证据交付可靠，不是只增加Agent数量。
+
+### 8.3 Ultracode近期变化：编排模式的生命周期
+
+接口链是`用户启用 → 写会话状态 → 当前任务使用workflow → 上下文变化时协调模式提示 → 重开会话恢复`。近期持久化与提示去重针对宿主状态，不提升模型参数能力，也不构成硬权限隔离；工具权限与模式开关分别管理。
+
+Goal、Skills、MCP及子会话保留为核心机制，但本批提交只能证明近期调整，不能证明它们全部首次开发于该时间段。Think-While-Speaking属于Audio3，PaCoRe属于独立推理框架，不列作Step-Code近期新增技术。
