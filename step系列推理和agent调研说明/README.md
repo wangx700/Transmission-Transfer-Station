@@ -1,8 +1,17 @@
 # Step 系列推理和 Agent 调研说明
 
-资料整理日期：2026-10-12（北京时间）。分别讨论 Step 5 Preview 与 Step 3.5/3.7 的推理和 Agent 技术竞争力，并提供模型结构、Step-Code、昇腾适配及配图专题。
+资料时点：2026-10-12（北京时间）。覆盖 Step-3、Step 3.5/3.7、Step5、Step-Code 与 Audio3；按推理机制、Agent运行控制和昇腾验证组织。
 
-## 阅读导航
+## 当前推荐入口：核心技术报告
+
+- [00-核心总览](https://github.com/wangx700/Transmission-Transfer-Station/blob/main/step%E7%B3%BB%E5%88%97%E6%8E%A8%E7%90%86%E5%92%8Cagent%E8%B0%83%E7%A0%94%E8%AF%B4%E6%98%8E/%E6%A0%B8%E5%BF%83%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A/00-%E6%A0%B8%E5%BF%83%E6%80%BB%E8%A7%88.md)
+- [01-推理技术核心分析](https://github.com/wangx700/Transmission-Transfer-Station/blob/main/step%E7%B3%BB%E5%88%97%E6%8E%A8%E7%90%86%E5%92%8Cagent%E8%B0%83%E7%A0%94%E8%AF%B4%E6%98%8E/%E6%A0%B8%E5%BF%83%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A/01-%E6%8E%A8%E7%90%86%E6%8A%80%E6%9C%AF%E6%A0%B8%E5%BF%83%E5%88%86%E6%9E%90.md)
+- [02-Agent技术核心分析](https://github.com/wangx700/Transmission-Transfer-Station/blob/main/step%E7%B3%BB%E5%88%97%E6%8E%A8%E7%90%86%E5%92%8Cagent%E8%B0%83%E7%A0%94%E8%AF%B4%E6%98%8E/%E6%A0%B8%E5%BF%83%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A/02-Agent%E6%8A%80%E6%9C%AF%E6%A0%B8%E5%BF%83%E5%88%86%E6%9E%90.md)
+- [03-昇腾适配与验证规范](https://github.com/wangx700/Transmission-Transfer-Station/blob/main/step%E7%B3%BB%E5%88%97%E6%8E%A8%E7%90%86%E5%92%8Cagent%E8%B0%83%E7%A0%94%E8%AF%B4%E6%98%8E/%E6%A0%B8%E5%BF%83%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A/03-%E6%98%87%E8%85%BE%E9%80%82%E9%85%8D%E4%B8%8E%E9%AA%8C%E8%AF%81%E8%A7%84%E8%8C%83.md)
+
+核心版统一保留机制、必要原理、证据与适配边界。下面的详细文档用于查阅参数、案例和源码证据，历史图/PPT保持归档属性。
+
+## 详细参考文档
 
 - [00-技术竞争力总览](https://github.com/wangx700/Transmission-Transfer-Station/blob/main/step%E7%B3%BB%E5%88%97%E6%8E%A8%E7%90%86%E5%92%8Cagent%E8%B0%83%E7%A0%94%E8%AF%B4%E6%98%8E/00-%E6%8A%80%E6%9C%AF%E7%AB%9E%E4%BA%89%E5%8A%9B%E6%80%BB%E8%A7%88.md)
 - [01-Step5Preview推理与Agent技术竞争力](https://github.com/wangx700/Transmission-Transfer-Station/blob/main/step%E7%B3%BB%E5%88%97%E6%8E%A8%E7%90%86%E5%92%8Cagent%E8%B0%83%E7%A0%94%E8%AF%B4%E6%98%8E/01-Step5Preview%E6%8E%A8%E7%90%86%E4%B8%8EAgent%E6%8A%80%E6%9C%AF%E7%AB%9E%E4%BA%89%E5%8A%9B.md)
