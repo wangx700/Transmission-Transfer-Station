@@ -1,6 +1,6 @@
 # Step-Code：机制、技术优势与 MindSpeed-Agent 借鉴
 
-**资料时点：2026-10-12，北京时间。**基于本次系列调研已读取的官方文档、代码、论文及标注来源的报道整理；部分动态页面于本轮复核。未在 NPU 上加载模型、运行 benchmark 或复现训练。
+**资料时点：2026-10-12，北京时间。** 基于本次系列调研已读取的官方文档、代码、论文及标注来源的报道整理；部分动态页面于本轮复核。未在 NPU 上加载模型、运行 benchmark 或复现训练。
 
 证据分为【官方配置/代码/论文】【官方测试】【独立评测】【非官方报道/博客】【工程解释/建议】。网络证据链接附在相关段落；文件名仅作交付索引。没有公开代码的机制不补造接口或参数，相关项目也不自动等于模型内部生产实现。
 
@@ -10,9 +10,9 @@ Step-Code 是模型外部的执行框架：模型决定下一步，宿主管理�
 
 ### 1.1 先给出有依据的优势
 
-**【官方产品测试】同一个 Step 5 Preview 接入 6 个 Agent，在 Multi-Frame BMK 上，Step-Code 报告完成率 73.3%、每任务 5.09M tokens，并称两项均最佳。**这比单纯列 Skills/MCP 更能支撑“harness 有贡献”的讨论，因为比较至少控制了模型身份。[Step-Code 产品页](https://platform.stepfun.ai/step-code)
+**【官方产品测试】同一个 Step 5 Preview 接入 6 个 Agent，在 Multi-Frame BMK 上，Step-Code 报告完成率 73.3%、每任务 5.09M tokens，并称两项均最佳。** 这比单纯列 Skills/MCP 更能支撑“harness 有贡献”的讨论，因为比较至少控制了模型身份。[Step-Code 产品页](https://platform.stepfun.ai/step-code)
 
-**边界：**本次未见完整公开任务集、六框架全部配置、重复次数、置信区间及 token 计量明细，所以应写“官方同模型框架对比中的优势”，不能写“独立证明优于所有 Coding Agents”。5.09M 是累计任务消耗，不是单次上下文；这也不是只开一个 skill 就产生的增益。
+**边界：** 本次未见完整公开任务集、六框架全部配置、重复次数、置信区间及 token 计量明细，所以应写“官方同模型框架对比中的优势”，不能写“独立证明优于所有 Coding Agents”。5.09M 是累计任务消耗，不是单次上下文；这也不是只开一个 skill 就产生的增益。
 
 ### 1.2 最值得讲的四项工程机制
 
@@ -25,7 +25,7 @@ Step-Code 是模型外部的执行框架：模型决定下一步，宿主管理�
 | 子 Agent 协作与结果裁剪 | `executeSubagent` 支持 single/parallel/chain、受限并发、独立 child session；可选 worktree；`chainResultText` 保留步骤状态和关键最终输出，早期正文放入 details | 把模块分析、实现与审查拆开；减少主上下文反复塞入所有中间输出 | [execute.ts](https://github.com/stepfun-ai/Step-Code/blob/main/packages/coding-agent/src/features/subagent/execute.ts)、[子会话 runner](https://github.com/stepfun-ai/Step-Code/blob/main/packages/coding-agent/src/features/step-subagent.ts) |
 | Goal 生命周期与 StepPage 交付 | `create_goal/get_goal/update_goal` 管理目标；宿主在当前轮结束后续跑；预算/取消状态持久化；StepPage 插件连接 MCP，发布目录/zip、预览、版本与回滚 | 长任务可持续推进并有明确停止状态；静态 Demo 从生成、测试走到可访问产物 | [goal-lifecycle.md](https://github.com/stepfun-ai/Step-Code/blob/main/docs/goal-lifecycle.md)、[StepPage manifest](https://github.com/stepfun-ai/Step-Code/blob/main/plugins/steppage/step.plugin.json) |
 
-**CLM 是本版应突出补充的点。**它不是每次把全部历史盲目摘要：优先修改可编辑的旧工具观察，保留原始会话历史，并验证本次投影是否仍对应当前会话/版本。原生摘要是后备路径。官方文档明确保护用户要求和当前工具组；这些校验保障结构完整性，**不自动保证非空摘要在语义上完全正确，也不保证实际缓存命中**。[上下文管理说明](https://github.com/stepfun-ai/Step-Code/blob/main/packages/coding-agent/docs/context-management.md)
+**CLM 是本版应突出补充的点。** 它不是每次把全部历史盲目摘要：优先修改可编辑的旧工具观察，保留原始会话历史，并验证本次投影是否仍对应当前会话/版本。原生摘要是后备路径。官方文档明确保护用户要求和当前工具组；这些校验保障结构完整性， **不自动保证非空摘要在语义上完全正确，也不保证实际缓存命中** 。[上下文管理说明](https://github.com/stepfun-ai/Step-Code/blob/main/packages/coding-agent/docs/context-management.md)
 
 ```mermaid
 flowchart LR
@@ -49,9 +49,9 @@ flowchart LR
 
 - **Skills 是任务方法与资源入口。**`loadSkillsFromDir` 发现目录，加载 `SKILL.md`；`loadSkillFromFile` 解析/校验名称描述；`formatSkillsForPrompt` 输出可发现信息。值得借鉴“先暴露简要索引、按需读取内容”，减少无关说明挤占长任务上下文。[skills.ts](https://github.com/stepfun-ai/Step-Code/blob/main/packages/coding-agent/src/core/skills.ts)
 - **Plugin 是组件封装与加载。**`readStepPluginManifest → parseStepPluginManifest` 读取插件声明，装载其资源与 MCP 配置；StepPage 的 manifest 就声明了 `steppage-mcp`。适合把业务能力按版本组织，而非在 prompt 中手工拼接一切。[plugins.ts](https://github.com/stepfun-ai/Step-Code/blob/main/packages/coding-agent/src/step/plugins.ts)、[StepPage 插件](https://github.com/stepfun-ai/Step-Code/blob/main/plugins/steppage/step.plugin.json)
-- **MCP 是工具接入。**检索、数据库、执行与发布服务由宿主/工具提供；“模型支持工具调用”不等于模型内置了这些服务。官方 README 说明多数 Claude Code 插件兼容，并支持迁移既有 MCP 配置，降低接入成本。[中文 README](https://github.com/stepfun-ai/Step-Code/blob/main/README.zh-CN.md)
+- **MCP 是工具接入。** 检索、数据库、执行与发布服务由宿主/工具提供；“模型支持工具调用”不等于模型内置了这些服务。官方 README 说明多数 Claude Code 插件兼容，并支持迁移既有 MCP 配置，降低接入成本。[中文 README](https://github.com/stepfun-ai/Step-Code/blob/main/README.zh-CN.md)
 
-`/cron` 可作为定期任务补充，不需要在技术主图展开。**Step-Code 最值得借鉴的是“工作上下文可编辑但历史可追踪、子会话结果有控制、目标生命周期可停止、产物可验收”这一组合。**Skills/MCP 通用兼容不是独有能力；官方 Goal 文档还说明完成由工作 Agent 的 `update_goal` 决定，当前没有独立完成 evaluator，因此验收仍需真实测试/产物证据，不能只信自报完成。
+`/cron` 可作为定期任务补充，不需要在技术主图展开。 **Step-Code 最值得借鉴的是“工作上下文可编辑但历史可追踪、子会话结果有控制、目标生命周期可停止、产物可验收”这一组合。** Skills/MCP 通用兼容不是独有能力；官方 Goal 文档还说明完成由工作 Agent 的 `update_goal` 决定，当前没有独立完成 evaluator，因此验收仍需真实测试/产物证据，不能只信自报完成。
 
 ## 2. Step-Code 对 MindSpeed-Agent：贡献重点是运行机制，不是再加一套插件清单
 
@@ -63,7 +63,7 @@ flowchart LR
 
 现有调用链可核查为：`catalog 确定 repo/task/plugin → 领域 unit/角色 → 工具与结构化产物 → handoff → next_state 计算下一状态 → 日志/verify_log 重放审计 → finalize/abort`。具体 YAML 当前还含 tester→developer 的重启路径及 reviewer↔optimizer 的闭环，不要只按 README 的旧“四角色”简称判断实现。[优化 YAML](https://gitcode.com/Ascend/MindSpeed-Agent/blob/f56bb671309ee1bd9f9fdf6c6c7b17b488f4a448/plugins/inference-model-optimize/workflows/optimize-pipeline.yaml)、[状态机接口](https://gitcode.com/Ascend/MindSpeed-Agent/blob/f56bb671309ee1bd9f9fdf6c6c7b17b488f4a448/plugins/inference-model-optimize/engine/state_machine.py)
 
-**直接接入 Step-Code 也需要宿主适配。**当前 MindSpeed-Agent 声明的平台为 Claude Code、Codex、DSH，catalog 中没有 Step-Code 平台；Step-Code 自述兼容多数 Claude Code 插件，不能据此认定 MindSpeed-Agent 的角色派发、hook、状态机 backend、取消和统计都直接可用。贡献 Step-Code 平台 adapter 时，应分别检查 manifest/skill 布局、子任务 API、回调与取消、handoff/门禁，并测试实际运行，不只做文档安装别名。[平台与安装声明](https://gitcode.com/Ascend/MindSpeed-Agent/blob/f56bb671309ee1bd9f9fdf6c6c7b17b488f4a448/catalog/plugins.yaml)、[Step-Code 兼容说明](https://github.com/stepfun-ai/Step-Code/blob/main/README.zh-CN.md)
+**直接接入 Step-Code 也需要宿主适配。** 当前 MindSpeed-Agent 声明的平台为 Claude Code、Codex、DSH，catalog 中没有 Step-Code 平台；Step-Code 自述兼容多数 Claude Code 插件，不能据此认定 MindSpeed-Agent 的角色派发、hook、状态机 backend、取消和统计都直接可用。贡献 Step-Code 平台 adapter 时，应分别检查 manifest/skill 布局、子任务 API、回调与取消、handoff/门禁，并测试实际运行，不只做文档安装别名。[平台与安装声明](https://gitcode.com/Ascend/MindSpeed-Agent/blob/f56bb671309ee1bd9f9fdf6c6c7b17b488f4a448/catalog/plugins.yaml)、[Step-Code 兼容说明](https://github.com/stepfun-ai/Step-Code/blob/main/README.zh-CN.md)
 
 ### 2.2 具体贡献方向与落点
 

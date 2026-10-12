@@ -1,16 +1,16 @@
 # Step 3.5 / 3.7 Flash：推理架构、后训练与 Agent 技术报告
 
-**整理日期：2026-10-12，北京时间。**本文件单独整理此前 Step 3.5/3.7 内容；Step 5 重点报告、总览、图示及旧版原稿均保留。架构依据论文、官方模型配置和代码；服务端点规格为此前注明日期的公开快照。本次未运行模型或复现训练。
+**整理日期：2026-10-12，北京时间。** 本文件单独整理此前 Step 3.5/3.7 内容；Step 5 重点报告、总览、图示及旧版原稿均保留。架构依据论文、官方模型配置和代码；服务端点规格为此前注明日期的公开快照。本次未运行模型或复现训练。
 
 证据范围：3.5 的后训练机制来自其技术报告；3.7 的模型结构、视觉与 MTP 来自其官方配置/仓库；StepTronOSS、StepMesh、Step-Code、PaCoRe 是相关开源项目，不因同属 StepFun 就认定为两个模型的默认生产内部实现。参考链接全部为网络地址，表格均注明统计条件。
 
 ## 1. 主要优势与值得借鉴的点
 
-- **可核查的高效模型结构：**大总容量、较小激活路径，混合局部/全局注意力与 MTP；推理适配可直接检查官方配置和算子语义。
-- **SWA + 输出 Gate：**窗口减少直接读取范围，门控调节各 head 的信息注入，Full 层保留全局交互路径。门控不自动跳过 attention 计算。
-- **稀疏 MoE 与负载约束：**288 routed experts、top-8、1 shared expert；3.5 论文区分全局专家均衡与 micro-batch EP rank 均衡。
-- **后训练与 rollout 一致性：**3.5 MIS-PO、截断感知价值估计及路由稳定性分析，为大规模异步采样提供具体技术抓手。
-- **3.7 的视觉与可部署实现：**在语言主干上增加视觉编码器；官方提供多个精度版本和 MTP 服务实验，但收益必须按硬件和负载说明。
+- **可核查的高效模型结构：** 大总容量、较小激活路径，混合局部/全局注意力与 MTP；推理适配可直接检查官方配置和算子语义。
+- **SWA + 输出 Gate：** 窗口减少直接读取范围，门控调节各 head 的信息注入，Full 层保留全局交互路径。门控不自动跳过 attention 计算。
+- **稀疏 MoE 与负载约束：** 288 routed experts、top-8、1 shared expert；3.5 论文区分全局专家均衡与 micro-batch EP rank 均衡。
+- **后训练与 rollout 一致性：** 3.5 MIS-PO、截断感知价值估计及路由稳定性分析，为大规模异步采样提供具体技术抓手。
+- **3.7 的视觉与可部署实现：** 在语言主干上增加视觉编码器；官方提供多个精度版本和 MTP 服务实验，但收益必须按硬件和负载说明。
 
 来源：[3.5 论文](https://arxiv.org/html/2602.10604v2)、[3.5 官方仓库](https://github.com/stepfun-ai/Step-3.5-Flash)、[3.7 官方仓库](https://github.com/stepfun-ai/Step-3.7-Flash)、[3.7 配置](https://huggingface.co/stepfun-ai/Step-3.7-Flash/blob/main/config.json)。
 
@@ -129,7 +129,7 @@ topk_prob = torch.gather(gate_prob, 1, indices)
 
 接口含义：bias 影响专家选择；混合系数来自未加 bias 的概率，后续还会归一/缩放。推理后端应保持这一语义，不能直接用普通 softmax top-k 替换。[路由实现](https://huggingface.co/stepfun-ai/Step-3.7-Flash/blob/main/modeling_step3p7.py#L537)
 
-**EP 不均的两级训练方案：**Step 3.5 用 loss-free bias 调整平衡全局专家调用；再加 EP-group 辅助损失，约束 micro-batch 的 rank 负载。全局专家均衡不保证当前 batch 各卡均衡。论文给出 `L_EP = G × Σ_g f_g p_g`，其中 f_g 为实际 token–expert 分配份额，p_g 为该 rank 上专家平均路由概率之和，G 为 rank/group 数；预训练系数 0.001。这是软约束，非每步强制平均，也不是可直接照搬到 rollout 的运行参数。[论文 §2.2、§4.2](https://arxiv.org/html/2602.10604v2)
+**EP 不均的两级训练方案：** Step 3.5 用 loss-free bias 调整平衡全局专家调用；再加 EP-group 辅助损失，约束 micro-batch 的 rank 负载。全局专家均衡不保证当前 batch 各卡均衡。论文给出 `L_EP = G × Σ_g f_g p_g`，其中 f_g 为实际 token–expert 分配份额，p_g 为该 rank 上专家平均路由概率之和，G 为 rank/group 数；预训练系数 0.001。这是软约束，非每步强制平均，也不是可直接照搬到 rollout 的运行参数。[论文 §2.2、§4.2](https://arxiv.org/html/2602.10604v2)
 
 服务侧可另用 EPLB 重排专家、复制热点专家并将请求分到等价副本，改变物理映射而保持逻辑专家选择。代价是显存、迁移与调度开销；支持情况需按模型/后端确认。RL 中若临时改路由 bias 或 top-k，会改变策略概率；专家副本还必须同步权重版本。[vLLM EPLB](https://docs.vllm.ai/en/latest/serving/expert_parallel_deployment/)、[vLLM-Ascend EPLB](https://github.com/vllm-project/vllm-ascend/blob/main/docs/source/user_guide/feature_guide/expert_parallelism_load_balancer.md)
 
@@ -252,7 +252,7 @@ flowchart LR
 
 图注：建议的业务流程。Step-Code 已实现技能/插件及执行框架接口；各领域 checker 需按业务补齐，不由 loader 自动保证。
 
-**代码证据：**Step-Code `loadSkillsFromDir` 扫描技能目录，`loadSkillFromFile` 解析 frontmatter、校验名称/描述，`formatSkillsForPrompt` 生成可发现的技能信息。插件侧 `readStepPluginManifest` / `parseStepPluginManifest` 读取并解析 `step.plugin.json`，代码也包含兼容 manifest 路径；再由框架装载对应能力。调用链可追溯，不等于任意插件全部兼容。[skills.ts](https://github.com/stepfun-ai/Step-Code/blob/main/packages/coding-agent/src/core/skills.ts)、[plugins.ts](https://github.com/stepfun-ai/Step-Code/blob/main/packages/coding-agent/src/step/plugins.ts)、[goal 生命周期](https://github.com/stepfun-ai/Step-Code/blob/main/docs/goal-lifecycle.md)
+**代码证据：** Step-Code `loadSkillsFromDir` 扫描技能目录，`loadSkillFromFile` 解析 frontmatter、校验名称/描述，`formatSkillsForPrompt` 生成可发现的技能信息。插件侧 `readStepPluginManifest` / `parseStepPluginManifest` 读取并解析 `step.plugin.json`，代码也包含兼容 manifest 路径；再由框架装载对应能力。调用链可追溯，不等于任意插件全部兼容。[skills.ts](https://github.com/stepfun-ai/Step-Code/blob/main/packages/coding-agent/src/core/skills.ts)、[plugins.ts](https://github.com/stepfun-ai/Step-Code/blob/main/packages/coding-agent/src/step/plugins.ts)、[goal 生命周期](https://github.com/stepfun-ai/Step-Code/blob/main/docs/goal-lifecycle.md)
 
 
 ### 5.1 哪些项目值得单独看
@@ -294,7 +294,7 @@ flowchart LR
 
 ## 附录 B：PaCoRe 独立技术背景
 
-**证据范围：**以下 HMMT 对照来自论文的 RLVR-8B 与 PaCoRe，不是 Step 3.5/3.7 的同条件测量；保留作此前讨论的独立推理方法。
+**证据范围：** 以下 HMMT 对照来自论文的 RLVR-8B 与 PaCoRe，不是 Step 3.5/3.7 的同条件测量；保留作此前讨论的独立推理方法。
 
 ```mermaid
 flowchart TD

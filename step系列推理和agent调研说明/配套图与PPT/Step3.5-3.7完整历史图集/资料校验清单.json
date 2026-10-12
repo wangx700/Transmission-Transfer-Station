@@ -20,7 +20,7 @@
     "README.md": "2cbae27161cffe614957f5c6653d687c29189134e39f854894bee7c3b87f5775",
     "Step3.5-3.7-全量图解-原版保留.pptx": "9bd44a6d3cfd3d9467036b7bf9645f5a178a34fa7f798e68f709b2a9503104b0",
     "Step3.5-3.7-单页总览-原版保留.pptx": "b1cbacee263349b9e3f30cbb81724fabcd593d1e5578a36218a95f53fc73409e",
-    "Step3.5与3.7推理与Agent技术报告.md": "770bbfde21b4a69a14a38917b155e439429d0e7b51cdd2409dcb46e7dda50536",
+    "Step3.5与3.7推理与Agent技术报告.md": "32cd4e28325781698ccbd46e6b2e704faf2d6d1e875243ee6f22ceada5356c2a",
     "交互图\\pacore-coordinated-reasoning-fragment.html": "19e09e8ecd69a62c640f5955ffec8a16e394713b065e531f2ba745b35a0e9a55",
     "交互图\\pacore-coordinated-reasoning-交互预览.html": "975c4aded82503f45a19821f0d4556b040554974b5efedab617066fee894312e",
     "交互图\\sparse-moe-routing-fragment.html": "38a5694caf5e5cdac209ecfaf60d75f04f9ce5ec49dd8ea34e7048a972b84155",
@@ -39,7 +39,7 @@
     "历史版本\\Step-模型结构与推理技术-单页总览.pptx": "b1cbacee263349b9e3f30cbb81724fabcd593d1e5578a36218a95f53fc73409e",
     "历史版本\\Step-模型结构与推理技术图解-定稿.pptx": "8deb76efe8873ef549de3f3c4346e66c4a1093cc1653659b610af5991fb0f9a6",
     "历史版本\\Step-模型结构与推理技术图解-汇总版.pptx": "9bd44a6d3cfd3d9467036b7bf9645f5a178a34fa7f798e68f709b2a9503104b0",
-    "历史版本\\Step系列推理与Agent技术总结-旧版机制背景.md": "da67ad426b5be433dedae31a1efff1b5587bdada645a109281a47fdd6c1a4335",
+    "历史版本\\Step系列推理与Agent技术总结-旧版机制背景.md": "5bb20ce8a79aaa7841bf9b876ac6ba62e70593e47b2932ada110ebbfbced2ae7",
     "历史版本\\推理图解-1.png": "ba69f10f83882acf258888b9a2e23960c1a3da9a1c846acdf420fca2a5aad420",
     "历史版本\\推理图解-2.png": "7f1acc778769db7d989cddb276c35ba5c52ec100b4b72141a09135fb8aaf3757",
     "历史版本\\推理图解-3.png": "0fb68ea6dcedfaab6a39bbfdc01067984bc4ada5a4ced7087d386be441523bff",
@@ -80,5 +80,6 @@
     "流程源文件\\06-flow.mmd": "c94560248d201908e5fbc2086343d7e2e1e347b853520c8117509142c2f168e1",
     "流程源文件\\06-flow.png": "c9e8d085c0f607075d28fb37f4c93006eb8c90b5970eb9813e39ec3547fd9c21",
     "流程源文件\\06-flow.svg": "a94855d52f7ebd3ab670965ebe006a87a0f90fca1b0700e45334d8dafdc20ac0"
-  }
+  },
+  "repository_formatting_note": "仓库副本仅修正Markdown加粗边界空格，技术文字未变；原交付文件仍保留在本地。此处哈希反映仓库副本。"
 }

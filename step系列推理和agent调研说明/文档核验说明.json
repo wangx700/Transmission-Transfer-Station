@@ -3,43 +3,43 @@
   "reports": [
     {
       "file": "00-技术竞争力总览.md",
-      "chars": 2308,
+      "chars": 2312,
       "network_links": 6,
       "tables": 1
     },
     {
       "file": "01-Step5Preview推理与Agent技术竞争力.md",
-      "chars": 13161,
+      "chars": 13187,
       "network_links": 25,
       "tables": 6
     },
     {
       "file": "02-Step3.5与3.7推理与Agent技术竞争力.md",
-      "chars": 10728,
+      "chars": 10738,
       "network_links": 38,
       "tables": 4
     },
     {
       "file": "03-模型结构与技术特性详解.md",
-      "chars": 15383,
+      "chars": 15407,
       "network_links": 37,
       "tables": 4
     },
     {
       "file": "04-StepCode机制优势与MindSpeedAgent借鉴.md",
-      "chars": 10258,
+      "chars": 10268,
       "network_links": 26,
       "tables": 2
     },
     {
       "file": "05-昇腾适配状态依赖与验证边界.md",
-      "chars": 12972,
+      "chars": 12981,
       "network_links": 26,
       "tables": 6
     },
     {
       "file": "06-图片与PPT配套说明.md",
-      "chars": 4658,
+      "chars": 4661,
       "network_links": 12,
       "tables": 4
     }
@@ -55,5 +55,14 @@
     "usd_per_index_task": 1.03,
     "output_tokens_per_second": 89.2,
     "url": "https://artificialanalysis.ai/models/step-5"
+  },
+  "markdown_bold_check": {
+    "parser": "marked (GFM mode)",
+    "files_checked": 11,
+    "changed_files": 9,
+    "changed_lines": 96,
+    "strong_elements": 185,
+    "unparsed_markers_outside_code": 0,
+    "technical_text_unchanged": true
   }
 }

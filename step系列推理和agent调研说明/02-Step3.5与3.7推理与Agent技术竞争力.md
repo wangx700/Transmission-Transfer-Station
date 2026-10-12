@@ -1,16 +1,16 @@
 # Step 3.5 / 3.7：推理与 Agent 技术竞争力报告
 
-**资料时点：2026-10-12，北京时间。**基于本次系列调研已读取的官方文档、代码、论文及标注来源的报道整理；部分动态页面于本轮复核。未在 NPU 上加载模型、运行 benchmark 或复现训练。
+**资料时点：2026-10-12，北京时间。** 基于本次系列调研已读取的官方文档、代码、论文及标注来源的报道整理；部分动态页面于本轮复核。未在 NPU 上加载模型、运行 benchmark 或复现训练。
 
 证据分为【官方配置/代码/论文】【官方测试】【独立评测】【非官方报道/博客】【工程解释/建议】。网络证据链接附在相关段落；文件名仅作交付索引。没有公开代码的机制不补造接口或参数，相关项目也不自动等于模型内部生产实现。
 
 ## 1. 主要优势与值得借鉴的点
 
-- **可核查的高效模型结构：**大总容量、较小激活路径，混合局部/全局注意力与 MTP；推理适配可直接检查官方配置和算子语义。
-- **SWA + 输出 Gate：**窗口减少直接读取范围，门控调节各 head 的信息注入，Full 层保留全局交互路径。门控不自动跳过 attention 计算。
-- **稀疏 MoE 与负载约束：**288 routed experts、top-8、1 shared expert；3.5 论文区分全局专家均衡与 micro-batch EP rank 均衡。
-- **后训练与 rollout 一致性：**3.5 MIS-PO、截断感知价值估计及路由稳定性分析，为大规模异步采样提供具体技术抓手。
-- **3.7 的视觉与可部署实现：**在语言主干上增加视觉编码器；官方提供多个精度版本和 MTP 服务实验，但收益必须按硬件和负载说明。
+- **可核查的高效模型结构：** 大总容量、较小激活路径，混合局部/全局注意力与 MTP；推理适配可直接检查官方配置和算子语义。
+- **SWA + 输出 Gate：** 窗口减少直接读取范围，门控调节各 head 的信息注入，Full 层保留全局交互路径。门控不自动跳过 attention 计算。
+- **稀疏 MoE 与负载约束：** 288 routed experts、top-8、1 shared expert；3.5 论文区分全局专家均衡与 micro-batch EP rank 均衡。
+- **后训练与 rollout 一致性：** 3.5 MIS-PO、截断感知价值估计及路由稳定性分析，为大规模异步采样提供具体技术抓手。
+- **3.7 的视觉与可部署实现：** 在语言主干上增加视觉编码器；官方提供多个精度版本和 MTP 服务实验，但收益必须按硬件和负载说明。
 
 来源：[3.5 论文](https://arxiv.org/html/2602.10604v2)、[3.5 官方仓库](https://github.com/stepfun-ai/Step-3.5-Flash)、[3.7 官方仓库](https://github.com/stepfun-ai/Step-3.7-Flash)、[3.7 配置](https://huggingface.co/stepfun-ai/Step-3.7-Flash/blob/main/config.json)。
 
@@ -91,7 +91,7 @@ flowchart LR
 
 图注：建议的业务流程。Step-Code 已实现技能/插件及执行框架接口；各领域 checker 需按业务补齐，不由 loader 自动保证。
 
-**代码证据：**Step-Code `loadSkillsFromDir` 扫描技能目录，`loadSkillFromFile` 解析 frontmatter、校验名称/描述，`formatSkillsForPrompt` 生成可发现的技能信息。插件侧 `readStepPluginManifest` / `parseStepPluginManifest` 读取并解析 `step.plugin.json`，代码也包含兼容 manifest 路径；再由框架装载对应能力。调用链可追溯，不等于任意插件全部兼容。[skills.ts](https://github.com/stepfun-ai/Step-Code/blob/main/packages/coding-agent/src/core/skills.ts)、[plugins.ts](https://github.com/stepfun-ai/Step-Code/blob/main/packages/coding-agent/src/step/plugins.ts)、[goal 生命周期](https://github.com/stepfun-ai/Step-Code/blob/main/docs/goal-lifecycle.md)
+**代码证据：** Step-Code `loadSkillsFromDir` 扫描技能目录，`loadSkillFromFile` 解析 frontmatter、校验名称/描述，`formatSkillsForPrompt` 生成可发现的技能信息。插件侧 `readStepPluginManifest` / `parseStepPluginManifest` 读取并解析 `step.plugin.json`，代码也包含兼容 manifest 路径；再由框架装载对应能力。调用链可追溯，不等于任意插件全部兼容。[skills.ts](https://github.com/stepfun-ai/Step-Code/blob/main/packages/coding-agent/src/core/skills.ts)、[plugins.ts](https://github.com/stepfun-ai/Step-Code/blob/main/packages/coding-agent/src/step/plugins.ts)、[goal 生命周期](https://github.com/stepfun-ai/Step-Code/blob/main/docs/goal-lifecycle.md)
 
 
 ### 5.1 哪些项目值得单独看
@@ -114,9 +114,9 @@ flowchart LR
 
 **PR #10556 已于 2026-07-13 合入**，标题为支持 Step 3.5/3.7 Flash on Ascend 950，正文同时记录 A3 与 950 的验证，并包含融合 Q/K norm + RoPE、FlashComm1 等工作。3.7 日志展示 API 200 和 MTP 接受统计；这些是具体功能证据，不能从短日志推导稳定吞吐 SLA。[PR 内容与合入状态](https://github.com/vllm-project/vllm-ascend/pull/10556)
 
-**v0.26.0rc1 发布说明明确列出 Step 3.5/3.7 的 Ascend 950 支持。**同一 release 也明确它是 model-restricted 版本，列出的充分验证集合为 Kimi K3、GLM-5.2、DeepSeek V4 两个版本，其他模型可用性不保证。因此同时承认“有适配”与“未进入该 release 的全部充分验证集合”，避免只摘支持一句话。[release 原文](https://github.com/vllm-project/vllm-ascend/releases/tag/v0.26.0rc1)
+**v0.26.0rc1 发布说明明确列出 Step 3.5/3.7 的 Ascend 950 支持。** 同一 release 也明确它是 model-restricted 版本，列出的充分验证集合为 Kimi K3、GLM-5.2、DeepSeek V4 两个版本，其他模型可用性不保证。因此同时承认“有适配”与“未进入该 release 的全部充分验证集合”，避免只摘支持一句话。[release 原文](https://github.com/vllm-project/vllm-ascend/releases/tag/v0.26.0rc1)
 
-**3.7 MRV2 任务 #14205 当前仍 open。**任务说明 MRV1 路径可用，并要求迁移 proposer、attention metadata 和采样。未关闭任务不等于没有任何 MRV2 实验代码，但不足以声称完成精度/性能验收。近期版本将部分 context-parallel 能力迁到 MRV2，因此 Step 的 MRV1/MRV2 与长上下文功能组合必须单列，不能分别看到“模型支持”和“PCP 支持”就认为交集可用。[MRV2 任务](https://github.com/vllm-project/vllm-ascend/issues/14205)
+**3.7 MRV2 任务 #14205 当前仍 open。** 任务说明 MRV1 路径可用，并要求迁移 proposer、attention metadata 和采样。未关闭任务不等于没有任何 MRV2 实验代码，但不足以声称完成精度/性能验收。近期版本将部分 context-parallel 能力迁到 MRV2，因此 Step 的 MRV1/MRV2 与长上下文功能组合必须单列，不能分别看到“模型支持”和“PCP 支持”就认为交集可用。[MRV2 任务](https://github.com/vllm-project/vllm-ascend/issues/14205)
 
 表注：2026-10-12 公开证据快照；“另验”不表示功能不存在。A3/950 为合入 PR 的设备范围；910B 为社区分支观察，证据等级不同。本次未真机复现。
 
@@ -147,7 +147,7 @@ HF architecture
 
 代码中的 Gate 仍是在 attention 输出后乘 `sigmoid(g_proj(hidden))`，再做输出投影；NPU 融合优化不应改变这一语义。MoE 配置还涉及 `router_bias`、`moe_router_scaling_factor`、`swiglustep` 等，不能把它当成任意普通 softmax MoE 自动替换。[对应 patch](https://github.com/vllm-project/vllm-ascend/blob/c076a131097fdfac9db4b57c8cf55bfd45ea0ca5/vllm_ascend/patch/worker/patch_step3p5.py)
 
-**测试证据要按实际内容读。**当前四卡 MTP 测试的 `MODELS` 同时列 3.5/3.7；函数名虽带 `tp8`，实际配置 `tensor_parallel_size=4`、`max_model_len=8192`、MTP=3。主要断言候选位置接受率，不是完整验证“所有生成 token 与 HF/无 MTP 完全一致”，也不是 256K 或图片测试。[e2e 测试](https://github.com/vllm-project/vllm-ascend/blob/c076a131097fdfac9db4b57c8cf55bfd45ea0ca5/tests/e2e/pull_request/four_card/spec_decode/test_mtp_step3p5.py)
+**测试证据要按实际内容读。** 当前四卡 MTP 测试的 `MODELS` 同时列 3.5/3.7；函数名虽带 `tp8`，实际配置 `tensor_parallel_size=4`、`max_model_len=8192`、MTP=3。主要断言候选位置接受率，不是完整验证“所有生成 token 与 HF/无 MTP 完全一致”，也不是 256K 或图片测试。[e2e 测试](https://github.com/vllm-project/vllm-ascend/blob/c076a131097fdfac9db4b57c8cf55bfd45ea0ca5/tests/e2e/pull_request/four_card/spec_decode/test_mtp_step3p5.py)
 
 另有 source regression 对 metadata、query 起点、draft window、reject token 参数的 AST 检查；它可保护接口契约，但并非真机算子精度或性能测试。[接口回归测试](https://github.com/vllm-project/vllm-ascend/blob/c076a131097fdfac9db4b57c8cf55bfd45ea0ca5/tests/ut/spec_decode/test_step3p5_source_regression.py)
 

@@ -6,13 +6,13 @@
 
 ## 1. 结论摘要
 
-**Step 5 Preview 最值得关注的是部分软件工程任务、金融研究与长资料分析能力；Step 系列最值得复用的技术，则集中在混合注意力、稀疏 MoE 的稳定训练、训练与推理概率一致性，以及可验收的 Agent 工作流。**能力优势和技术实现证据应分别判断。
+**Step 5 Preview 最值得关注的是部分软件工程任务、金融研究与长资料分析能力；Step 系列最值得复用的技术，则集中在混合注意力、稀疏 MoE 的稳定训练、训练与推理概率一致性，以及可验收的 Agent 工作流。** 能力优势和技术实现证据应分别判断。
 
-- **业务能力：**Step 5 在 ProgramBench、代码库问答和 FrontierFinance 等项目中相对 GLM-5.3/Kimi K3 有优势信号；DeepSWE 接近两者，通用业务自动化和部分长程任务不领先。
-- **推理架构：**Step 3.5/3.7 的 SWA + Full Attention、逐 head 输出门控、288 专家 top-8 MoE、MTP 有论文或配置/代码支持，适合研究推理效率与数值一致性。Step 5 目前只能确认 600B/27B 稀疏 MoE、1M API 上下文等公开规格。
-- **后训练：**Step 3.5 的 MIS-PO、截断处理和路由稳定性分析，以及 StepTronOSS 的版本流控，适合解决高吞吐 rollout 带来的概率偏差和样本过时问题。
-- **Agent：**Step-Code 的技能发现、插件接入和目标生命周期可直接参考；业务收益取决于模型、工具、环境和验收共同作用，不能由存在 SKILL.md 推导固定增益。
-- **计算扩展：**PaCoRe 学习综合多条推理结论，用更多测试时计算改善困难任务；它适合高价值可验证任务，不应按低成本方案推广。
+- **业务能力：** Step 5 在 ProgramBench、代码库问答和 FrontierFinance 等项目中相对 GLM-5.3/Kimi K3 有优势信号；DeepSWE 接近两者，通用业务自动化和部分长程任务不领先。
+- **推理架构：** Step 3.5/3.7 的 SWA + Full Attention、逐 head 输出门控、288 专家 top-8 MoE、MTP 有论文或配置/代码支持，适合研究推理效率与数值一致性。Step 5 目前只能确认 600B/27B 稀疏 MoE、1M API 上下文等公开规格。
+- **后训练：** Step 3.5 的 MIS-PO、截断处理和路由稳定性分析，以及 StepTronOSS 的版本流控，适合解决高吞吐 rollout 带来的概率偏差和样本过时问题。
+- **Agent：** Step-Code 的技能发现、插件接入和目标生命周期可直接参考；业务收益取决于模型、工具、环境和验收共同作用，不能由存在 SKILL.md 推导固定增益。
+- **计算扩展：** PaCoRe 学习综合多条推理结论，用更多测试时计算改善困难任务；它适合高价值可验证任务，不应按低成本方案推广。
 
 主要依据：[Step 5 发布页](https://www.stepfun.com/step-5-preview)、[Step 3.5 技术报告](https://arxiv.org/html/2602.10604v2)、[Step 3.7 仓库](https://github.com/stepfun-ai/Step-3.7-Flash)、[Step-Code](https://github.com/stepfun-ai/Step-Code)、[PaCoRe](https://github.com/stepfun-ai/PaCoRe)。
 
@@ -46,11 +46,11 @@
 
 ### 2.2 参数变化对推理的含义
 
-**3.5 → 3.7：语言主干基本同源，增加视觉接入。**可复用文本 attention/MoE 的结构分析，但视觉编码和图像 token 会增加计算与上下文开销。总参数接近并不意味着所有请求耗时相同。
+**3.5 → 3.7：语言主干基本同源，增加视觉接入。** 可复用文本 attention/MoE 的结构分析，但视觉编码和图像 token 会增加计算与上下文开销。总参数接近并不意味着所有请求耗时相同。
 
-**3.5 → Step 5：按披露值，总参数约 3.06 倍，激活参数约 2.45 倍。**这说明容量与激活计算预算扩大，不能解释成吞吐、质量或费用同比变化。Step 5 的层数与注意力实现未知，无法可靠估计其 KV 成本，也不能确认它采用 3.5/3.7 的 SWA、MTP 或 MIS-PO。
+**3.5 → Step 5：按披露值，总参数约 3.06 倍，激活参数约 2.45 倍。** 这说明容量与激活计算预算扩大，不能解释成吞吐、质量或费用同比变化。Step 5 的层数与注意力实现未知，无法可靠估计其 KV 成本，也不能确认它采用 3.5/3.7 的 SWA、MTP 或 MIS-PO。
 
-**容量估算只作下限参考：**600B 参数全用 BF16 存储约 1.2 TB（十进制），不含 KV、激活、通信 buffer 和运行时。稀疏激活减少本 token 的专家计算，不免除其他专家权重的存储需求；本报告不据此给出未经验证的 Step 5 本地部署配方。
+**容量估算只作下限参考：** 600B 参数全用 BF16 存储约 1.2 TB（十进制），不含 KV、激活、通信 buffer 和运行时。稀疏激活减少本 token 的专家计算，不免除其他专家权重的存储需求；本报告不据此给出未经验证的 Step 5 本地部署配方。
 
 ## 3. Step 5 的业务与推理优势：成绩、意义和限制
 
@@ -77,7 +77,7 @@
 
 独立交叉检查限制了泛化结论：Vals 的 Finance Agent v2 为 **50.67±0.32，38/76**，TB v4 为 **31.82±2.62**；± 按页面展示保留，排名为读取时样本集合。这支持“金融研究部分任务有优势”，不支持“全部金融 Agent 领先”。[Vals 评测](https://www.vals.ai/models/stepfun_step-5-preview)
 
-**高分的技术原因能说到哪一步？**目前结果支持相应环境下的理解、执行与验证能力；Step 5 未公开完整训练消融，不能将高分直接归因于某种 attention、RL loss 或 skill。下文技术说明来自明确列出的模型/仓库，作为实现与迁移证据。
+**高分的技术原因能说到哪一步？** 目前结果支持相应环境下的理解、执行与验证能力；Step 5 未公开完整训练消融，不能将高分直接归因于某种 attention、RL loss 或 skill。下文技术说明来自明确列出的模型/仓库，作为实现与迁移证据。
 
 ## 4. 推理架构与技术原理
 
@@ -153,7 +153,7 @@ topk_prob = torch.gather(gate_prob, 1, indices)
 
 接口含义：bias 影响专家选择；混合系数来自未加 bias 的概率，后续还会归一/缩放。推理后端应保持这一语义，不能直接用普通 softmax top-k 替换。[路由实现](https://huggingface.co/stepfun-ai/Step-3.7-Flash/blob/main/modeling_step3p7.py#L537)
 
-**EP 不均的两级训练方案：**Step 3.5 用 loss-free bias 调整平衡全局专家调用；再加 EP-group 辅助损失，约束 micro-batch 的 rank 负载。全局专家均衡不保证当前 batch 各卡均衡。论文给出 `L_EP = G × Σ_g f_g p_g`，其中 f_g 为实际 token–expert 分配份额，p_g 为该 rank 上专家平均路由概率之和，G 为 rank/group 数；预训练系数 0.001。这是软约束，非每步强制平均，也不是可直接照搬到 rollout 的运行参数。[论文 §2.2、§4.2](https://arxiv.org/html/2602.10604v2)
+**EP 不均的两级训练方案：** Step 3.5 用 loss-free bias 调整平衡全局专家调用；再加 EP-group 辅助损失，约束 micro-batch 的 rank 负载。全局专家均衡不保证当前 batch 各卡均衡。论文给出 `L_EP = G × Σ_g f_g p_g`，其中 f_g 为实际 token–expert 分配份额，p_g 为该 rank 上专家平均路由概率之和，G 为 rank/group 数；预训练系数 0.001。这是软约束，非每步强制平均，也不是可直接照搬到 rollout 的运行参数。[论文 §2.2、§4.2](https://arxiv.org/html/2602.10604v2)
 
 服务侧可另用 EPLB 重排专家、复制热点专家并将请求分到等价副本，改变物理映射而保持逻辑专家选择。代价是显存、迁移与调度开销；支持情况需按模型/后端确认。RL 中若临时改路由 bias 或 top-k，会改变策略概率；专家副本还必须同步权重版本。[vLLM EPLB](https://docs.vllm.ai/en/latest/serving/expert_parallel_deployment/)、[vLLM-Ascend EPLB](https://github.com/vllm-project/vllm-ascend/blob/main/docs/source/user_guide/feature_guide/expert_parallelism_load_balancer.md)
 
@@ -278,7 +278,7 @@ flowchart LR
 
 图注：建议的业务流程。Step-Code 已实现技能/插件及执行框架接口；各领域 checker 需按业务补齐，不由 loader 自动保证。
 
-**代码证据：**Step-Code `loadSkillsFromDir` 扫描技能目录，`loadSkillFromFile` 解析 frontmatter、校验名称/描述，`formatSkillsForPrompt` 生成可发现的技能信息。插件侧 `readStepPluginManifest` / `parseStepPluginManifest` 读取并解析 `step.plugin.json`，代码也包含兼容 manifest 路径；再由框架装载对应能力。调用链可追溯，不等于任意插件全部兼容。[skills.ts](https://github.com/stepfun-ai/Step-Code/blob/main/packages/coding-agent/src/core/skills.ts)、[plugins.ts](https://github.com/stepfun-ai/Step-Code/blob/main/packages/coding-agent/src/step/plugins.ts)、[goal 生命周期](https://github.com/stepfun-ai/Step-Code/blob/main/docs/goal-lifecycle.md)
+**代码证据：** Step-Code `loadSkillsFromDir` 扫描技能目录，`loadSkillFromFile` 解析 frontmatter、校验名称/描述，`formatSkillsForPrompt` 生成可发现的技能信息。插件侧 `readStepPluginManifest` / `parseStepPluginManifest` 读取并解析 `step.plugin.json`，代码也包含兼容 manifest 路径；再由框架装载对应能力。调用链可追溯，不等于任意插件全部兼容。[skills.ts](https://github.com/stepfun-ai/Step-Code/blob/main/packages/coding-agent/src/core/skills.ts)、[plugins.ts](https://github.com/stepfun-ai/Step-Code/blob/main/packages/coding-agent/src/step/plugins.ts)、[goal 生命周期](https://github.com/stepfun-ai/Step-Code/blob/main/docs/goal-lifecycle.md)
 
 ### 6.2 优势或借鉴点，对应哪些仓库技术
 
@@ -347,7 +347,7 @@ flowchart TD
 | 服务与 EP | prefill/decode/工具等待、每 rank 分配量与计算耗时、通信 p95/p99 | 瓶颈是计算、负载、通信还是环境 |
 | 总成本与恢复 | 每成功任务成本、重试/重放成功率、人工返工、重复副作用 | 是否具备生产使用价值 |
 
-**技术说明的最终落点：**Step 5 用任务评测证明局部能力；Step 3.5/3.7 与开源仓库提供可核查的技术抓手。优先复用可验收、可观测、可重放的环节，再用业务和训练结果决定是否扩大模型、并发与系统复杂度。
+**技术说明的最终落点：** Step 5 用任务评测证明局部能力；Step 3.5/3.7 与开源仓库提供可核查的技术抓手。优先复用可验收、可观测、可重放的环节，再用业务和训练结果决定是否扩大模型、并发与系统复杂度。
 
 ---
 
