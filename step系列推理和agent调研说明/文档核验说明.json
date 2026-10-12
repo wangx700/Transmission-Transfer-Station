@@ -1,0 +1,59 @@
+{
+  "date": "2026-10-12 Asia/Shanghai",
+  "reports": [
+    {
+      "file": "00-技术竞争力总览.md",
+      "chars": 2308,
+      "network_links": 6,
+      "tables": 1
+    },
+    {
+      "file": "01-Step5Preview推理与Agent技术竞争力.md",
+      "chars": 13161,
+      "network_links": 25,
+      "tables": 6
+    },
+    {
+      "file": "02-Step3.5与3.7推理与Agent技术竞争力.md",
+      "chars": 10728,
+      "network_links": 38,
+      "tables": 4
+    },
+    {
+      "file": "03-模型结构与技术特性详解.md",
+      "chars": 15383,
+      "network_links": 37,
+      "tables": 4
+    },
+    {
+      "file": "04-StepCode机制优势与MindSpeedAgent借鉴.md",
+      "chars": 10258,
+      "network_links": 26,
+      "tables": 2
+    },
+    {
+      "file": "05-昇腾适配状态依赖与验证边界.md",
+      "chars": 12972,
+      "network_links": 26,
+      "tables": 6
+    },
+    {
+      "file": "06-图片与PPT配套说明.md",
+      "chars": 4658,
+      "network_links": 12,
+      "tables": 4
+    }
+  ],
+  "attachments": 73,
+  "all_report_evidence_links_https": true,
+  "all_tables_have_notes": true,
+  "attachment_hashes_verified": true,
+  "prior_original_hashes_unchanged": true,
+  "npu_runtime_tested": false,
+  "AA_step5_this_turn": {
+    "index": 44,
+    "usd_per_index_task": 1.03,
+    "output_tokens_per_second": 89.2,
+    "url": "https://artificialanalysis.ai/models/step-5"
+  }
+}

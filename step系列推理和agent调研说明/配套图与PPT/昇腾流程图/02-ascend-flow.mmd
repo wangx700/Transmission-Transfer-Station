@@ -1,0 +1,15 @@
+flowchart LR
+  C[Catalog路由 / 领域unit] --> A[Architect：结构与内存]
+  A --> D[Developer：环境与服务]
+  D --> T[Tester：基线 / 寻优]
+  T --> R[Reviewer：profiling与证据]
+  R --> O[Optimizer：实施与复验]
+  O --> R
+  T -->|需重启| D
+  R --> F[Finalize / Abort]
+  E[建议：支持证据卡 / unknown状态] -.-> A
+  L[建议：NPU资源lease] -.-> D
+  L -.-> T
+  L -.-> O
+  S[建议：CLM / 关键结果handoff / 预算取消] -.-> A
+  S -.-> R

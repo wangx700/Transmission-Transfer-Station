@@ -1,0 +1,72 @@
+<div id="sparse-block-merge-cost">
+  <style>
+    #sparse-block-merge-cost .selection-grid{display:grid;grid-template-columns:54px repeat(8,minmax(0,1fr));gap:7px;align-items:center;margin:16px 0}
+    #sparse-block-merge-cost .selection-grid>div{text-align:center;min-width:0;padding:6px 0}
+    #sparse-block-merge-cost .hit-common{background:color-mix(in srgb,var(--viz-series-1) 24%,transparent);color:var(--foreground)}
+    #sparse-block-merge-cost .hit-extra{background:color-mix(in srgb,var(--viz-series-2) 24%,transparent);color:var(--foreground)}
+    #sparse-block-merge-cost .miss{background:var(--muted);color:var(--muted-foreground)}
+    #sparse-block-merge-cost .swatch{display:inline-block;width:14px;height:14px;vertical-align:middle;margin-right:6px}
+    #sparse-block-merge-cost .common-color{background:var(--viz-series-1)}
+    #sparse-block-merge-cost .extra-color{background:var(--viz-series-2)}
+    #sparse-block-merge-cost .candidate-line{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:12px 0}
+    #sparse-block-merge-cost .candidate-label{min-width:108px}
+    #sparse-block-merge-cost .candidate-mark{padding:7px 10px}
+    #sparse-block-merge-cost .downward{text-align:center;margin:8px 0;color:var(--muted-foreground)}
+    #sparse-block-merge-cost .cost-row{margin:17px 0}
+    #sparse-block-merge-cost .cost-title{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px}
+    #sparse-block-merge-cost .cost-track{height:30px;background:var(--muted);display:flex;max-width:100%;overflow:hidden}
+    #sparse-block-merge-cost .cost-segment{height:100%;flex:none}
+    #sparse-block-merge-cost .cost-result{margin:12px 0;font-weight:500}
+    #sparse-block-merge-cost .cost-legend{display:flex;gap:14px;flex-wrap:wrap;margin:12px 0}
+    @media(max-width:420px){#sparse-block-merge-cost .selection-grid{grid-template-columns:38px repeat(8,minmax(0,1fr));gap:3px}}
+  </style>
+  <h3>相邻 query 的 Top-k 经常重叠</h3>
+  <div class="text-small text-muted">教学示意：4 个相邻 query，每个选 4 个历史块；非 Step 5 参数</div>
+  <div class="selection-grid" role="img" aria-label="四个query均选择H1、H3、H5，还分别选择H7、H8、H6、H4。蓝色为共同候选，第二色为不同候选。">
+    <div></div><div>H1</div><div>H2</div><div>H3</div><div>H4</div><div>H5</div><div>H6</div><div>H7</div><div>H8</div>
+    <div>q₁</div><div class="hit-common">选中</div><div class="miss">—</div><div class="hit-common">选中</div><div class="miss">—</div><div class="hit-common">选中</div><div class="miss">—</div><div class="hit-extra">选中</div><div class="miss">—</div>
+    <div>q₂</div><div class="hit-common">选中</div><div class="miss">—</div><div class="hit-common">选中</div><div class="miss">—</div><div class="hit-common">选中</div><div class="miss">—</div><div class="miss">—</div><div class="hit-extra">选中</div>
+    <div>q₃</div><div class="hit-common">选中</div><div class="miss">—</div><div class="hit-common">选中</div><div class="miss">—</div><div class="hit-common">选中</div><div class="hit-extra">选中</div><div class="miss">—</div><div class="miss">—</div>
+    <div>q₄</div><div class="hit-common">选中</div><div class="miss">—</div><div class="hit-common">选中</div><div class="hit-extra">选中</div><div class="hit-common">选中</div><div class="miss">—</div><div class="miss">—</div><div class="miss">—</div>
+  </div>
+  <div class="downward">↓ 按块组织重叠候选 / 批量访问（概念示意）</div>
+  <div class="candidate-line"><span class="candidate-label">共同历史块</span><span class="candidate-mark hit-common">H1</span><span class="candidate-mark hit-common">H3</span><span class="candidate-mark hit-common">H5</span></div>
+  <div class="candidate-line"><span class="candidate-label">差异候选保留</span><span class="candidate-mark hit-extra">q₁→H7</span><span class="candidate-mark hit-extra">q₂→H8</span><span class="candidate-mark hit-extra">q₃→H6</span><span class="candidate-mark hit-extra">q₄→H4</span></div>
+  <div class="text-small text-muted">示意目标：减少重复索引与零散搬运；不是删除 query，也不规定实际合并算法。</div>
+  <hr>
+  <h3>局部变为 1/8，整体能快多少？</h3>
+  <div class="viz-controls"><label class="form-label">原索引/选择耗时占比 <span id="sbc-share" class="tabular-nums">40%</span><input class="form-range" id="sbc-p" type="range" min="5" max="90" step="5" value="40" aria-label="原索引与选择耗时占比"></label></div>
+  <div class="text-small text-muted">假设：基线 100 时间单位；局部成本下降等比例转为耗时下降；其余阶段不变，无新增开销。</div>
+  <div class="cost-row">
+    <div class="cost-title"><span>优化前</span><span id="sbc-before" class="tabular-nums">索引 40 + 其他 60 = 100</span></div>
+    <div class="cost-track" role="img" aria-label="优化前耗时100单位"><div id="sbc-before-index" class="cost-segment common-color" style="width:40%"></div><div id="sbc-before-other" class="cost-segment extra-color" style="width:60%"></div></div>
+  </div>
+  <div class="cost-row">
+    <div class="cost-title"><span>优化后</span><span id="sbc-after" class="tabular-nums">索引 5 + 其他 60 = 65</span></div>
+    <div class="cost-track" role="img" id="sbc-after-track" aria-label="优化后耗时65单位"><div id="sbc-after-index" class="cost-segment common-color" style="width:5%"></div><div id="sbc-after-other" class="cost-segment extra-color" style="width:60%"></div></div>
+  </div>
+  <div class="cost-legend text-small"><span><i class="swatch common-color" aria-hidden="true"></i>Indexer / Top-k</span><span><i class="swatch extra-color" aria-hidden="true"></i>Attention / FFN / 通信等其他阶段</span></div>
+  <div id="sbc-result" class="cost-result tabular-nums" aria-live="polite">整体 1.54× 加速，耗时减少 35%</div>
+  <div class="text-small text-muted">8× 是报道的局部成本指标；本图比例、候选集合与时间单位均为教学假设，非 Step 5 实测。</div>
+  <script>
+    (()=>{
+      const root=document.getElementById('sparse-block-merge-cost');
+      const el=id=>root.querySelector('#'+id);
+      const range=el('sbc-p');
+      const fmt=n=>Number.isInteger(n)?String(n):n.toFixed(2).replace(/0+$/,'').replace(/\.$/,'');
+      function render(p){
+        range.value=p;const other=100-p,index=p/8,total=index+other,speed=100/total;
+        el('sbc-share').textContent=p+'%';el('sbc-before').textContent=`索引 ${p} + 其他 ${other} = 100`;
+        el('sbc-after').textContent=`索引 ${fmt(index)} + 其他 ${other} = ${fmt(total)}`;
+        el('sbc-before-index').style.width=p+'%';el('sbc-before-other').style.width=other+'%';
+        el('sbc-after-index').style.width=index+'%';el('sbc-after-other').style.width=other+'%';
+        el('sbc-after-track').setAttribute('aria-label',`优化后耗时${fmt(total)}单位`);
+        el('sbc-result').textContent=`整体 ${speed.toFixed(2)}× 加速，耗时减少 ${fmt(100-total)}%`;
+      }
+      function apply(state){const raw=Number(state?.modelContent?.indexShare??40),p=Number.isFinite(raw)?raw:40;render(Math.max(5,Math.min(90,Math.round(p/5)*5)));}
+      apply(window.openai?.widgetState);
+      range.addEventListener('input',()=>{const p=Number(range.value);render(p);window.openai?.setWidgetState?.({modelContent:{indexShare:p,localFactor:8},privateContent:null})?.catch(()=>{});});
+      window.addEventListener('openai:set_globals',e=>{if(e.detail?.globals?.widgetState)apply(e.detail.globals.widgetState);});
+    })();
+  </script>
+</div>

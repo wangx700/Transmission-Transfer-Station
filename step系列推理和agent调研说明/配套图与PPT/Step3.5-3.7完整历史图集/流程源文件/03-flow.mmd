@@ -1,0 +1,13 @@
+flowchart LR
+  H[hidden] --> P[FP32 sigmoid：专家概率]
+  P --> B[加 router bias]
+  B --> K[Top-8：逻辑专家编号]
+  P --> W[按选中编号取原概率并归一/缩放]
+  K --> W
+  K --> D[EP dispatch 到物理 rank]
+  D --> E[选中专家 FFN]
+  E --> C[加权 combine]
+  W --> C
+  H --> S[Shared expert]
+  S --> O[合并输出]
+  C --> O

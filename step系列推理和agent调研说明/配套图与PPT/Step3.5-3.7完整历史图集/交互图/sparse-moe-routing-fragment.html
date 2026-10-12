@@ -1,0 +1,29 @@
+<div id="step-moe-routing">
+  <h3>稀疏 MoE：每个 token 只计算选中的专家</h3>
+  <div class="viz-controls"><label class="form-label">示意输入 token<select id="moe-token" class="form-select"><option value="0">Token A</option><option value="1">Token B</option><option value="2">Token C</option></select></label></div>
+  <div class="moe-flow"><span id="moe-input">hidden(A)</span><span>→</span><span>Router：sigmoid + 选取 bias</span><span>→</span><span>Top-3</span></div>
+  <div id="moe-experts" class="moe-expert-grid" role="img" aria-label="12 个示意专家，3 个参与当前 token 的计算"></div>
+  <div class="viz-row text-small"><span class="moe-key moe-active"></span>当前选中 <span class="moe-key moe-idle"></span>本 token 未调用</div>
+  <div class="moe-flow"><span id="moe-sum" class="tabular-nums"></span><span>+</span><span class="moe-shared">Shared expert（每次参与）</span><span>→</span><span>合并输出</span></div>
+  <div id="moe-detail" class="text-small" aria-live="polite"></div>
+  <div class="text-small text-muted">示意：12 routed / top-3；Step 3.5/3.7 实际：288 routed / top-8 + 1 shared。编号不是人工指定的业务专家。</div>
+</div>
+<style>
+#step-moe-routing{color:var(--foreground)}
+#step-moe-routing .moe-flow{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:16px 0}
+#step-moe-routing .moe-expert-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;margin:12px 0}
+#step-moe-routing .moe-expert{padding:10px 4px;text-align:center;background:var(--muted);color:var(--muted-foreground)}
+#step-moe-routing .moe-expert.selected{background:color-mix(in srgb,var(--viz-series-1) 22%,transparent);color:var(--foreground)}
+#step-moe-routing .moe-shared{padding:8px;background:color-mix(in srgb,var(--viz-series-2) 16%,transparent)}
+#step-moe-routing .moe-key{display:inline-block;width:12px;height:12px}
+#step-moe-routing .moe-active{background:color-mix(in srgb,var(--viz-series-1) 22%,transparent)}
+#step-moe-routing .moe-idle{background:var(--muted)}
+@media(max-width:420px){#step-moe-routing .moe-expert-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+</style>
+<script>
+(()=>{const root=document.getElementById('step-moe-routing'),el=id=>root.querySelector('#'+id);let token=0;
+ const examples=[{ids:[1,5,9],weights:[.48,.31,.21]},{ids:[2,5,11],weights:[.42,.35,.23]},{ids:[0,7,10],weights:[.45,.33,.22]}];
+ function restore(s){const n=s?.privateContent?.moeToken;if(Number.isInteger(n)&&n>=0&&n<3)token=n;}restore(window.openai?.widgetState);
+ function render(){const x=examples[token],name=String.fromCharCode(65+token);el('moe-token').value=token;el('moe-input').textContent='hidden('+name+')';el('moe-experts').innerHTML=Array.from({length:12},(_,i)=>{const j=x.ids.indexOf(i);return `<div class="moe-expert ${j>=0?'selected':''}" aria-label="专家 E${i+1}，${j>=0?'已选中，示意权重 '+x.weights[j]:'未调用'}">E${i+1}<div class="text-small tabular-nums">${j>=0?x.weights[j].toFixed(2):'—'}</div></div>`}).join('');el('moe-sum').textContent=x.ids.map((id,i)=>x.weights[i].toFixed(2)+' × E'+(id+1)).join(' + ');el('moe-detail').textContent=`Token ${name} 选择 ${x.ids.map(i=>'E'+(i+1)).join('、')}；加权系数仅作示意。bias 参与选专家，合并权重取未加 bias 的概率并归一/缩放。`;}
+ el('moe-token').addEventListener('change',e=>{token=Number(e.target.value);render();window.openai?.setWidgetState?.({modelContent:{moe:{token:String.fromCharCode(65+token),selectedExperts:examples[token].ids.map(i=>'E'+(i+1))}},privateContent:{moeToken:token}})?.catch(()=>{});});window.addEventListener('openai:set_globals',e=>{restore(e.detail?.globals?.widgetState);render()});render();})();
+</script>

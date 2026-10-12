@@ -1,0 +1,11 @@
+flowchart TD
+  I[文本 tokens] --> H[语言 hidden states]
+  V[图像：3.7 视觉编码器与 projector] --> H
+  H --> A[按层执行 SWA 或 Full Attention]
+  H --> G[线性投影与 sigmoid：逐 head gate]
+  A --> M[head 输出乘 gate]
+  G --> M
+  M --> O[输出投影与残差]
+  O --> F[FFN：前 3 层 dense，后 42 层 MoE]
+  F --> R[残差与下一层]
+  R --> L[最终 norm 与语言输出头]

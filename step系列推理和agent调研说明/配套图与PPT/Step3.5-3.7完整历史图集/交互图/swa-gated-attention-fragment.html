@@ -1,0 +1,60 @@
+<div id="step-swa-gate">
+  <h3>SWA：限制可见范围；Gate：调节 head 输出</h3>
+  <div class="viz-controls">
+    <label class="form-label">当前 query 位置 <span id="swa-q-value" class="tabular-nums"></span><input id="swa-q" class="form-range" type="range" min="1" max="16" value="12"></label>
+    <label class="form-label">示意窗口 <span id="swa-w-value" class="tabular-nums"></span><input id="swa-w" class="form-range" type="range" min="1" max="16" value="4"></label>
+  </div>
+  <div class="swa-matrices">
+    <figure><figcaption>因果 Full Attention</figcaption><div id="swa-full"></div></figure>
+    <figure><figcaption>因果 Sliding Window Attention</figcaption><div id="swa-local"></div></figure>
+  </div>
+  <div class="viz-row text-small"><span class="swa-key swa-visible"></span>可见连接 <span class="swa-key swa-selected"></span>当前 query <span class="swa-key swa-masked"></span>屏蔽</div>
+  <div id="swa-result" aria-live="polite" class="text-small tabular-nums"></div>
+  <div class="swa-layout" aria-label="Step 3.5 与 3.7 的典型 S3F1 局部布局示意"><span>SWA</span><span>SWA</span><span>SWA</span><span class="swa-global">Full</span><span>→ 下一组</span></div>
+  <div class="text-small text-muted">矩阵为 16 tokens 缩小示意，窗口含当前 token；实际配置 window=512，主干 33 SWA + 12 Full。</div>
+  <hr>
+  <h3>Gated SWA：每个 token、每个 head 一个 gate</h3>
+  <div class="viz-controls"><label class="form-label">示意 head 的 gate <span id="swa-g-value" class="tabular-nums"></span><input id="swa-g" class="form-range" type="range" min="0" max="100" value="25"></label></div>
+  <div class="swa-gate-flow"><span>hidden x</span><span>→</span><span>线性投影 + sigmoid</span><span>→</span><span id="swa-gate-number" class="tabular-nums"></span></div>
+  <div class="swa-bar-row"><span>窗口内 head 输出 y</span><div class="swa-track"><div class="swa-before"></div></div><span class="tabular-nums">1.00</span></div>
+  <div class="swa-bar-row"><span>门控后输出 g × y</span><div class="swa-track"><div id="swa-after"></div></div><span id="swa-after-number" class="tabular-nums"></span></div>
+  <div class="swa-gate-flow"><span>各 head 的 g × y</span><span>→</span><span>拼接 + 输出投影</span><span>→</span><span>残差路径</span></div>
+  <div class="text-small text-muted">输出幅度归一为 1；gate 为手动示意，实际由模型预测。0/1 为极限示意；门控不改变上方 mask。</div>
+</div>
+<style>
+#step-swa-gate{color:var(--foreground)}
+#step-swa-gate figure{margin:0;min-width:0}
+#step-swa-gate .swa-matrices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;margin:12px 0}
+#step-swa-gate figcaption{margin-bottom:6px;font-weight:500}
+#step-swa-gate svg{display:block;width:100%}
+#step-swa-gate svg text{fill:var(--foreground);font-size:12px}
+#step-swa-gate .swa-key{width:12px;height:12px;display:inline-block}
+#step-swa-gate .swa-visible{background:color-mix(in srgb,var(--viz-series-1) 28%,transparent)}
+#step-swa-gate .swa-selected{background:var(--viz-series-1)}
+#step-swa-gate .swa-masked{background:var(--muted)}
+#step-swa-gate .swa-layout,#step-swa-gate .swa-gate-flow{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:14px 0}
+#step-swa-gate .swa-layout span:not(:last-child){padding:8px 12px;background:color-mix(in srgb,var(--viz-series-1) 12%,transparent)}
+#step-swa-gate .swa-layout .swa-global{background:color-mix(in srgb,var(--viz-series-2) 16%,transparent)}
+#step-swa-gate .swa-bar-row{display:grid;grid-template-columns:minmax(155px,1fr) 2fr 46px;gap:12px;align-items:center;margin:14px 0}
+#step-swa-gate .swa-track{height:18px;background:var(--muted)}
+#step-swa-gate .swa-before{height:100%;width:100%;background:color-mix(in srgb,var(--viz-series-1) 30%,transparent)}
+#step-swa-gate #swa-after{height:100%;background:var(--viz-series-1)}
+@media(max-width:470px){#step-swa-gate .swa-matrices{grid-template-columns:1fr}#step-swa-gate .swa-bar-row{grid-template-columns:1fr 44px}#step-swa-gate .swa-bar-row>span:first-child{grid-column:1/-1}}
+</style>
+<script>
+(()=>{
+ const root=document.getElementById('step-swa-gate'),el=id=>root.querySelector('#'+id);
+ let state={q:12,w:4,g:25};
+ function restore(s){const v=s?.privateContent?.swa;if(!v)return;for(const k of ['q','w','g'])if(Number.isFinite(v[k]))state[k]=Math.max(k==='g'?0:1,Math.min(k==='g'?100:16,v[k]));}
+ restore(window.openai?.widgetState);
+ function matrix(target,local){const width=target.getBoundingClientRect().width;if(width<1)return;const cell=(width-48)/16,top=24,left=28,h=top+16*cell+30;let out=`<svg viewBox="0 0 ${width} ${h}" role="img" aria-label="${local?'滑窗':'全局'}因果注意力矩阵：行是 query，列是 key；当前第 ${state.q} 行"><title>因果注意力可见连接</title>`;
+ for(let i=0;i<16;i++)for(let j=0;j<16;j++){const yes=j<=i&&(!local||j>=i-state.w+1);const selected=i===state.q-1;const fill=yes?(selected?'var(--viz-series-1)':'color-mix(in srgb,var(--viz-series-1) 28%,transparent)'):'var(--muted)';out+=`<rect x="${left+j*cell}" y="${top+i*cell}" width="${Math.max(1,cell-1)}" height="${Math.max(1,cell-1)}" fill="${fill}"/>`;}
+ for(const i of [0,3,7,11,15]){out+=`<text x="${left+i*cell+cell/2}" y="${h-12}" text-anchor="middle">${i+1}</text><text x="${left-6}" y="${top+i*cell+cell*.72}" text-anchor="end">${i+1}</text>`;}
+ out+=`<text x="${left}" y="14">Query ↓</text><text x="${width-5}" y="14" text-anchor="end">Key →</text></svg>`;target.innerHTML=out;
+ }
+ function render(){el('swa-q').value=state.q;el('swa-w').value=state.w;el('swa-g').value=state.g;el('swa-q-value').textContent=state.q;el('swa-w-value').textContent=state.w+' tokens';el('swa-g-value').textContent=(state.g/100).toFixed(2);matrix(el('swa-full'),false);matrix(el('swa-local'),true);const start=Math.max(1,state.q-state.w+1),pairs=16*state.w-state.w*(state.w-1)/2;el('swa-result').textContent=`当前 Full 看 1–${state.q}；SWA 看 ${start}–${state.q}。整张矩阵连接数：Full 136，SWA ${pairs}（仅计连接，不是实测 FLOPs）。`;el('swa-gate-number').textContent='g = '+(state.g/100).toFixed(2);el('swa-after').style.width=state.g+'%';el('swa-after-number').textContent=(state.g/100).toFixed(2);}
+ function save(){window.openai?.setWidgetState?.({modelContent:{swa:{query:state.q,illustrativeWindow:state.w,illustrativeGate:state.g/100}},privateContent:{swa:state}})?.catch(()=>{});}
+ [['swa-q','q'],['swa-w','w'],['swa-g','g']].forEach(([id,key])=>{el(id).addEventListener('input',e=>{state[key]=Number(e.target.value);render()});el(id).addEventListener('change',save)});
+ window.addEventListener('openai:set_globals',e=>{restore(e.detail?.globals?.widgetState);render()});new ResizeObserver(()=>render()).observe(el('swa-full'));render();
+})();
+</script>

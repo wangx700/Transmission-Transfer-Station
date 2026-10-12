@@ -1,0 +1,8 @@
+flowchart LR
+  X[当前 token hidden] --> Q[Q/K/V 与位置编码]
+  Q --> W[因果窗口：允许哪些 key]
+  W --> Y[softmax 加权 V：head 输出 y]
+  X --> G[每 head 标量 g：sigmoid 投影]
+  Y --> Z[门控输出：g 乘 y]
+  G --> Z
+  Z --> O[拼接 heads 与输出投影]

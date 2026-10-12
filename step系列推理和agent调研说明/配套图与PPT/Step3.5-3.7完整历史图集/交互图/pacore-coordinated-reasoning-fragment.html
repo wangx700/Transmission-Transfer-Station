@@ -1,0 +1,30 @@
+<div id="step-pacore">
+  <h3>PaCoRe：并行探索 → 提取结论 → 综合再推理</h3>
+  <div class="viz-controls"><label class="form-label">论文推理配置<select id="pacore-mode" class="form-select"><option value="low">Low · [4]</option><option value="medium">Medium · [16]</option><option value="high" selected>High · [32, 4]</option></select></label></div>
+  <div class="pacore-lane"><span>原问题 x</span><span>↓</span></div>
+  <div id="pacore-rounds"></div>
+  <div class="pacore-lane"><span>↓</span><span class="pacore-final">最终一条综合轨迹</span><span>↓</span><span>提取最终结论 y</span></div>
+  <div id="pacore-selected" class="text-small" aria-live="polite"></div>
+  <hr>
+  <div class="pacore-training"><span>训练：问题 + 多个结论</span><span>→</span><span>综合推理</span><span>→</span><span>最终答案正确性 reward</span><span>→</span><span>更新综合策略</span></div>
+  <div class="text-small text-muted">每个圆点是一条轨迹；每个短条是一条提取出的结论。轮间用同一模型权重；图不按耗时或 token 长度缩放。</div>
+</div>
+<style>
+#step-pacore{color:var(--foreground)}
+#step-pacore .pacore-lane{display:flex;flex-direction:column;align-items:center;gap:8px;margin:12px 0}
+#step-pacore .pacore-round{display:grid;grid-template-columns:minmax(0,1fr) 24px minmax(0,1fr);align-items:center;gap:12px;margin:14px 0}
+#step-pacore .pacore-round-label{grid-column:1/-1;font-weight:500}
+#step-pacore .pacore-dots{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:7px;justify-items:center;margin:10px 0}
+#step-pacore .pacore-dot{width:12px;height:12px;border-radius:50%;background:var(--viz-series-1)}
+#step-pacore .pacore-messages{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:7px;margin:10px 0}
+#step-pacore .pacore-message{height:6px;width:100%;background:var(--viz-series-2)}
+#step-pacore .pacore-final{padding:8px 12px;background:color-mix(in srgb,var(--viz-series-1) 16%,transparent)}
+#step-pacore .pacore-training{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0}
+@media(max-width:380px){#step-pacore .pacore-round{gap:8px}#step-pacore .pacore-dots,#step-pacore .pacore-messages{gap:4px}}
+</style>
+<script>
+(()=>{const root=document.getElementById('step-pacore'),el=id=>root.querySelector('#'+id);let mode='high';const configs={low:[4],medium:[16],high:[32,4]},data={low:{score:88.1,ttc:243},medium:{score:92.9,ttc:869},high:{score:94.5,ttc:1796}};
+ function restore(s){const v=s?.privateContent?.pacoreMode;if(configs[v])mode=v;}restore(window.openai?.widgetState);
+ function render(){el('pacore-mode').value=mode;el('pacore-rounds').innerHTML=configs[mode].map((k,i)=>`<div class="pacore-round"><div class="pacore-round-label">第 ${i+1} 轮 · ${i?'原问题 + 上轮所有结论':'原问题'} → ${k} 条并行轨迹</div><div><div class="text-small">${k} 条完整推理</div><div class="pacore-dots" role="img" aria-label="${k} 条轨迹">${Array.from({length:k},()=>'<span class="pacore-dot"></span>').join('')}</div></div><span>→</span><div><div class="text-small">${k} 条结论消息</div><div class="pacore-messages" role="img" aria-label="${k} 条压缩消息">${Array.from({length:k},()=>'<span class="pacore-message"></span>').join('')}</div></div></div>${i<configs[mode].length-1?'<div class="pacore-lane"><span>↓ 将这些结论送入下一轮</span></div>':''}`).join('');const d=data[mode];el('pacore-selected').textContent=`论文 HMMT 2025：${mode} ${d.score}% / 平均 TTC ${d.ttc}K tokens；基础 RLVR-8B：75.4% / 48K。TTC 包括系统推理消耗，不是单条上下文长度。`;}
+ el('pacore-mode').addEventListener('change',e=>{mode=e.target.value;render();window.openai?.setWidgetState?.({modelContent:{pacore:{configuration:configs[mode],mode}},privateContent:{pacoreMode:mode}})?.catch(()=>{});});window.addEventListener('openai:set_globals',e=>{restore(e.detail?.globals?.widgetState);render()});render();})();
+</script>

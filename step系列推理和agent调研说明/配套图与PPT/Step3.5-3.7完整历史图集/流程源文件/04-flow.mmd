@@ -1,0 +1,50 @@
+flowchart TB
+  subgraph PRODUCER[任务调度与生成侧]
+    direction LR
+    SRC[任务与环境数据源] --> BP{积压准入检查}
+    BP -->|允许接单| TAG[记录 scheduled_version
+进入 pre_gen]
+    BP -->|积压过多| HOLD[暂停读取新任务]
+    HOLD --> BP
+    TAG --> VER{推理权重版本
+达到任务所需版本?}
+    VER -->|尚未达到：等待同步| VER
+    VER -->|达到| CON[生成并发限制
+max_concurrent_genables]
+    CON --> RUN[Rollout / Agent 执行
+生成轨迹与任务结果]
+    RUN <--> ENV[工具与沙箱
+验收及 reward 按实验定义]
+    RUN --> CB[完成回调
+移出 running，结果进入 pre_train]
+  end
+
+  CB --> QUEUE[待训练队列 pre_train]
+
+  subgraph LEARNER[训练与权重发布侧]
+    direction LR
+    INIT[初始 Actor 权重] --> AGE{推进到下一版本后
+在途任务版本差是否允许?}
+    AGE -->|超出 max_staleness| OLD[等待旧任务完成]
+    OLD --> AGE
+    AGE -->|允许| SYNC[推进训练版本
+sync_weight 同步当前 Actor]
+    SYNC --> BATCH{待训练 prompt 数
+达到 prompt_per_iter?}
+    BATCH -->|不足：等待生成| BATCH
+    BATCH -->|足够：取出一批| TRAIN[训练侧处理与参数更新
+按所选 RL 算法执行]
+    TRAIN --> AGE
+  end
+
+  QUEUE --> BATCH
+  SYNC -. 推理版本就绪 .-> VER
+  CB -. 旧任务完成后重新检查 .-> AGE
+  QUEUE -. 队列消化后重新检查积压 .-> BP
+
+  classDef gate fill:#fff2cc,stroke:#b88700,color:#222;
+  classDef state fill:#e8f1ff,stroke:#4876b8,color:#222;
+  classDef wait fill:#f5f5f5,stroke:#888,color:#333;
+  class BP,VER,AGE,BATCH gate;
+  class TAG,QUEUE,SYNC state;
+  class HOLD,OLD wait;
