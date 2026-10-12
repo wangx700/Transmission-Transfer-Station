@@ -1,5 +1,8 @@
 # Step 系列推理和 Agent 调研说明
 
+**优先阅读：[技术精简版](https://github.com/wangx700/Transmission-Transfer-Station/blob/main/step%E7%B3%BB%E5%88%97%E6%8E%A8%E7%90%86%E5%92%8Cagent%E8%B0%83%E7%A0%94%E8%AF%B4%E6%98%8E/%E6%A0%B8%E5%BF%83%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A/%E6%8A%80%E6%9C%AF%E7%B2%BE%E7%AE%80%E7%89%88.md)。** 集中保留结构、机制、接口与代码；详细专题按需展开。
+
+
 资料时点：2026-10-12（北京时间）。覆盖 Step-3、Step 3.5/3.7、Step5、Step-Code 与 Audio3；按推理机制、Agent运行控制和昇腾验证组织。
 
 ## 当前推荐入口：核心技术报告

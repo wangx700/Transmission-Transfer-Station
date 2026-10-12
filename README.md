@@ -1,5 +1,8 @@
 # 模型推理与Agent技术资料
 
+**优先阅读：[技术精简版](https://github.com/wangx700/Transmission-Transfer-Station/blob/main/step%E7%B3%BB%E5%88%97%E6%8E%A8%E7%90%86%E5%92%8Cagent%E8%B0%83%E7%A0%94%E8%AF%B4%E6%98%8E/%E6%A0%B8%E5%BF%83%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A/%E6%8A%80%E6%9C%AF%E7%B2%BE%E7%AE%80%E7%89%88.md)。** 集中保留结构、机制、接口与代码；详细专题按需展开。
+
+
 面向模型架构、推理系统、Agent执行与昇腾适配的技术调研。资料时点及证据等级见各文档；未进行NPU真机复现。
 
 ## 核心报告
