@@ -23,3 +23,7 @@
 正文参考均为网络链接，表格注明日期、单位与测试条件。官方规格、厂商测试、独立评测、媒体转述和工程解释分别标识。昇腾部分为公开资料及源码核验，未做 NPU 真机测试。动态评分、服务端点与版本支持以注明时点为准。
 
 历史图/PPT原样保留，图中教学参数不视为生产配置；现行说明以本目录根部专题文档为准。prefill、Indexer 与 K/V 复用作为通用原理说明，不等于已还原 Step 5 未公开内核。
+
+## Step-3 与 StepAudio 3 新增专题
+
+- [推理与Agent技术专题：五份技术文档与流程图](https://github.com/wangx700/Transmission-Transfer-Station/blob/main/step%E7%B3%BB%E5%88%97%E6%8E%A8%E7%90%86%E5%92%8Cagent%E8%B0%83%E7%A0%94%E8%AF%B4%E6%98%8E/Step3%E4%B8%8EStepAudio3%E6%8A%80%E6%9C%AF%E4%B8%93%E9%A2%98/README.md)
