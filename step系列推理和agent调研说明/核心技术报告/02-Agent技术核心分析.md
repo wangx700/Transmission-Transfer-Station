@@ -64,3 +64,5 @@ Audio3 Music通过ABC计划再生成音乐，允许语言模型先编辑结构�
 | 完成门禁 | 命令、退出码、测试、产物和配置版本 | “完成”由证据支持，不以模型声明替代 |
 
 平台接入还需检查工具协议、stream事件和hook；兼容插件格式不等于MindSpeed-Agent所有宿主行为在Step-Code上直接可用。
+
+代码仓、具体接口流程与工程投入分级见[重点对象代码参考与工程投入](https://github.com/wangx700/Transmission-Transfer-Station/blob/main/step%E7%B3%BB%E5%88%97%E6%8E%A8%E7%90%86%E5%92%8Cagent%E8%B0%83%E7%A0%94%E8%AF%B4%E6%98%8E/%E6%A0%B8%E5%BF%83%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A/04-%E9%87%8D%E7%82%B9%E5%AF%B9%E8%B1%A1%E4%BB%A3%E7%A0%81%E5%8F%82%E8%80%83%E4%B8%8E%E5%B7%A5%E7%A8%8B%E6%8A%95%E5%85%A5.md)。
