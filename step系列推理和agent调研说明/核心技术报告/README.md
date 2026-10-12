@@ -15,6 +15,11 @@
 
 ## 技术专题与可视化
 
+- [06A-推理特性详解与竞争力评估](https://github.com/wangx700/Transmission-Transfer-Station/blob/main/step系列推理和agent调研说明/核心技术报告/06A-推理特性详解与竞争力评估.md)：EP均衡、Gated SWA、AFD、MTP-3、PaCoRe，以及Step5 Attention专节。
+- [07-Agent特性详解、承载仓库与竞争力评估](https://github.com/wangx700/Transmission-Transfer-Station/blob/main/step系列推理和agent调研说明/核心技术报告/07-Agent特性详解、承载仓库与竞争力评估.md)：独立承载列、Step-Code使用规模、CLM/子会话/Goal/workflow、研究与GUI闭环、TWS及实时工具。
+
+- [06-推理与Agent七项特性说明及竞争力评估](https://github.com/wangx700/Transmission-Transfer-Station/blob/main/step系列推理和agent调研说明/核心技术报告/06-推理与Agent七项特性说明及竞争力评估.md)：EP均衡、Gated SWA、AFD、PaCoRe、MTP-3、CLM、Think-While-Speaking的机制、接口流程、竞争力边界及参考。
+
 - [05-AFD与StepMesh机制优势及昇腾工程判断](https://github.com/wangx700/Transmission-Transfer-Station/blob/main/step%E7%B3%BB%E5%88%97%E6%8E%A8%E7%90%86%E5%92%8Cagent%E8%B0%83%E7%A0%94%E8%AF%B4%E6%98%8E/%E6%A0%B8%E5%BF%83%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A/05-AFD%E4%B8%8EStepMesh%E6%9C%BA%E5%88%B6%E4%BC%98%E5%8A%BF%E5%8F%8A%E6%98%87%E8%85%BE%E5%B7%A5%E7%A8%8B%E5%88%A4%E6%96%AD.md)
 - [05-Audio3Gen与Music机制优势及昇腾工程投入](https://github.com/wangx700/Transmission-Transfer-Station/blob/main/step%E7%B3%BB%E5%88%97%E6%8E%A8%E7%90%86%E5%92%8Cagent%E8%B0%83%E7%A0%94%E8%AF%B4%E6%98%8E/%E6%A0%B8%E5%BF%83%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A/05-Audio3Gen%E4%B8%8EMusic%E6%9C%BA%E5%88%B6%E4%BC%98%E5%8A%BF%E5%8F%8A%E6%98%87%E8%85%BE%E5%B7%A5%E7%A8%8B%E6%8A%95%E5%85%A5.md)
 - [05-MoE与EP机制、拖尾治理及昇腾工程判断](https://github.com/wangx700/Transmission-Transfer-Station/blob/main/step%E7%B3%BB%E5%88%97%E6%8E%A8%E7%90%86%E5%92%8Cagent%E8%B0%83%E7%A0%94%E8%AF%B4%E6%98%8E/%E6%A0%B8%E5%BF%83%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A/05-MoE%E4%B8%8EEP%E6%9C%BA%E5%88%B6%E3%80%81%E6%8B%96%E5%B0%BE%E6%B2%BB%E7%90%86%E5%8F%8A%E6%98%87%E8%85%BE%E5%B7%A5%E7%A8%8B%E5%88%A4%E6%96%AD.md)
