@@ -2,5 +2,5 @@
 "step系列推理和agent调研说明/**" -text
 
 # Preserve published artifact checksums and raw pytest traceback whitespace.
-vllm-ascend-pr18915-sparse-hccl/** -text
+vllm-ascend-pr18915-sparse-hccl/** -text whitespace=cr-at-eol
 vllm-ascend-pr18915-sparse-hccl/**/*.log -whitespace
