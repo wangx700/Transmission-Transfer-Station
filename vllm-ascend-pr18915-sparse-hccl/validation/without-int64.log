@@ -1,0 +1,155 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_______ test_receive_large_checkpoint_passes_upstream_bounds_validation ________
+
+    def test_receive_large_checkpoint_passes_upstream_bounds_validation():
+        engine = make_worker()
+        engine.model_update_group = MagicMock(device=torch.device("cpu"))
+        indices = torch.tensor([0, 2147483647], dtype=torch.int32)
+        values = torch.tensor([2.0, 3.0])
+        wire_dtypes = []
+    
+        def broadcast(tensor, src, stream):
+            wire_dtypes.append(tensor.dtype)
+            tensor.copy_(indices if tensor.dtype == torch.int32 else values)
+    
+        class StagingReached(Exception):
+            pass
+    
+        def stop_before_staging(size, fill_value, **kwargs):
+            assert size == (2**31,)
+            assert fill_value != fill_value  # The upstream sparse staging fill is NaN.
+            raise StagingReached
+    
+        engine.model_update_group.broadcast.side_effect = broadcast
+        info = SparseHCCLWeightTransferUpdateInfo(["checkpoint.weight"], ["float32"], [[65536, 32768]], [2])
+        # Run real upstream validation but never allocate the multi-GiB staging tensor.
+        with (
+            patch("torch.npu.device", return_value=nullcontext()),
+            patch("torch.npu.current_stream"),
+            patch("vllm_ascend.distributed.weight_transfer.sparse_hccl_engine.is_pp_missing_parameter", return_value=False),
+            patch(
+                "vllm_ascend.distributed.weight_transfer.sparse_hccl_engine.load_checkpoint_weight_patches",
+                wraps=load_checkpoint_weight_patches,
+            ) as load,
+            patch("torch.full", side_effect=stop_before_staging) as staging,
+            pytest.raises(StagingReached),
+        ):
+>           engine.receive_weights(info)
+
+tests/ut/distributed/weight_transfer/test_sparse_hccl_engine.py:262: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+vllm_ascend/distributed/weight_transfer/sparse_hccl_engine.py:214: in receive_weights
+    load_checkpoint_weight_patches(self.model, patches)
+/usr/local/python3.12.13/lib/python3.12/unittest/mock.py:1139: in __call__
+    return self._mock_call(*args, **kwargs)
+/usr/local/python3.12.13/lib/python3.12/unittest/mock.py:1143: in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+/usr/local/python3.12.13/lib/python3.12/unittest/mock.py:1216: in _execute_mock_call
+    return self._mock_wraps(*args, **kwargs)
+/usr/local/python3.12.13/lib/python3.12/site-packages/torch/utils/_contextlib.py:124: in decorate_context
+    return func(*args, **kwargs)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+model = Module()
+patches = [CheckpointWeightPatch(name='checkpoint.weight', shape=(65536, 32768), dtype=torch.float32, values=tensor([2., 3.]), indices=tensor([         0, 2147483647], dtype=torch.int32))]
+
+    @torch.no_grad()
+    def load_checkpoint_weight_patches(
+        model: torch.nn.Module,
+        patches: Iterable[CheckpointWeightPatch],
+        *,
+        max_chunk_bytes: int = _DEFAULT_PATCH_CHUNK_BYTES,
+        validate_unique_indices: bool = True,
+    ) -> set[str]:
+        """Load ordered patches through the model's checkpoint loader.
+    
+        A call may contain either dense or sparse patches, but not both. A repeated
+        name starts a new loader call, so patches for that weight are applied in input
+        order. A later patch may update positions changed by an earlier patch. Each
+        sparse patch creates a full checkpoint-shaped tensor whose NaNs mark unchanged
+        elements. Each locally applied sparse patch must use one final same-shaped
+        floating-point ``Tensor.copy_``. Intermediate or unrelated ``copy_`` calls,
+        composed loaders, and custom write paths are unsupported. ``max_chunk_bytes``
+        is a batching target; one tensor may exceed it.
+    
+        Online checkpoint-format dense updates require the caller to manage vLLM's
+        layerwise reload lifecycle. Sparse online updates modify initialized model
+        tensors in place and must not use that lifecycle. Patch shapes, dtypes, value
+        lengths, and sparse indices are validated before loading begins.
+    
+        This function does not roll back a partial update. If a loader fails after a
+        write, some destinations may already be changed. Do not serve from the affected
+        worker until a known baseline has been restored or the worker has been
+        restarted.
+    
+        Args:
+            model: Model whose native ``load_weights`` method applies the patches.
+            patches: Dense replacements or sparse updates in checkpoint coordinates.
+            max_chunk_bytes: Target checkpoint tensor bytes per
+                ``model.load_weights`` call. A single tensor may exceed this target.
+            validate_unique_indices: Whether to reject duplicate sparse indices within
+                each patch. Repeated patches may update the same positions. Disable
+                only for a trusted producer that already guarantees unique positions
+                within each patch.
+    
+        Returns:
+            Union of the weight names reported by all ``model.load_weights`` calls.
+    
+        """
+        if max_chunk_bytes <= 0:
+            raise ValueError("max_chunk_bytes must be positive")
+    
+        patch_list = list(patches)
+        patch_numels = [_validate_patch_structure(patch) for patch in patch_list]
+        # All patches in one call must use the same dense or sparse representation.
+        sparse_flags = {patch.indices is not None for patch in patch_list}
+        if len(sparse_flags) > 1:
+            raise ValueError("Dense and sparse checkpoint patches cannot be mixed")
+        sparse = sparse_flags == {True}
+    
+        # Keep validation results on their devices and read one combined result per
+        # device, instead of synchronizing the CPU once for every patch.
+        checks_by_device: dict[torch.device, list[torch.Tensor]] = {}
+        if sparse:
+            for patch, numel in zip(patch_list, patch_numels, strict=True):
+                assert patch.indices is not None
+    
+                # NaN is reserved to mean "leave this checkpoint position unchanged,"
+                # so it cannot also be supplied as a new sparse value.
+                patch_checks = [torch.isnan(patch.values).any()]
+                indices = patch.indices.to(device=patch.values.device)
+                if indices.numel():
+                    # Sparse indices address the flattened full checkpoint tensor.
+                    patch_checks.append(
+                        torch.logical_or(indices < 0, indices >= numel).any()
+                    )
+                    if validate_unique_indices:
+                        # Equal neighboring indices after sorting indicate duplicates.
+                        sorted_indices = torch.sort(indices).values
+                        patch_checks.append(
+                            (sorted_indices[1:] == sorted_indices[:-1]).any()
+                        )
+    
+                checks_by_device.setdefault(patch.values.device, []).extend(patch_checks)
+    
+            for device_checks in checks_by_device.values():
+                if torch.stack(device_checks).any().item():
+                    invalid_reasons = (
+                        "NaN values, out-of-range indices, or duplicate indices"
+                        if validate_unique_indices
+                        else "NaN values or out-of-range indices"
+                    )
+>                   raise ValueError(f"Sparse checkpoint patches contain {invalid_reasons}")
+E                   ValueError: Sparse checkpoint patches contain NaN values, out-of-range indices, or duplicate indices
+
+../vllm/vllm/model_executor/model_loader/checkpoint_weight_patch.py:225: ValueError
+=============================== warnings summary ===============================
+../../../../usr/local/python3.12.13/lib/python3.12/site-packages/torch/jit/_script.py:362: 14 warnings
+  /usr/local/python3.12.13/lib/python3.12/site-packages/torch/jit/_script.py:362: DeprecationWarning: `torch.jit.script_method` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/ut/distributed/weight_transfer/test_sparse_hccl_engine.py::test_receive_large_checkpoint_passes_upstream_bounds_validation
+1 failed, 48 deselected, 14 warnings in 0.41s

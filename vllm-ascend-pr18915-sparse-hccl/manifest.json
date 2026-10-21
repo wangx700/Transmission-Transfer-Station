@@ -1,0 +1,61 @@
+{
+  "pr": 18915,
+  "ascend_commit": "ee1f30111881795103af01a0fe19caf41d20a5ac",
+  "vllm_pin": "c4df37dfcc7f72ca41cd43801a468526ecf99a2b",
+  "pytest_cases": 80,
+  "per_file_counts": {
+    "tests/ut/distributed/weight_transfer/test_sparse_hccl_engine.py": 49,
+    "tests/ut/ops/test_routed_experts.py": 25,
+    "tests/e2e/pull_request/eight_card/test_sparse_hccl_checkpoint.py": 6
+  },
+  "manual_validations": 2,
+  "note": "Documentation generation only; existing hardware results were reused and nodeids recollected.",
+  "sha256": {
+    "01-sequence.md": "dee1fa697713b300353137ff08fc405b07528ebda1aa38bd9c137117ad51eb6c",
+    "01-sequence.mmd": "ed6b08810fa5c6f9607cc105b4634f86beb4b959eb8b8783bf6ba84b42dcd331",
+    "01-sequence.png": "f9c7a588c1583b9f06afa6034e1793848f56fd84ae8b5e184bb5ce97eb89f456",
+    "01-sequence.puml": "424d42b9fe38504ad77f71613934d8956519c2be5ecaf65806c1d02cb30f6144",
+    "01-sequence.svg": "40afea1d9bdbb1b181915955440130efc697366fa8ef66240a299a76724901e7",
+    "02-core-code.md": "461451717307f4d87a6ba41040624dca7a2fbd3b96b1df1cd022411102a6f321",
+    "03-test-cases.md": "cbaa9f123bf27ad01742579b7633107414c98b2367937ce006f0749c697f229c",
+    "case-inventory.log": "6e4300210579ccaa337830c35a176777480a4e8d9beed5f32d8262846ff9c993",
+    "README.md": "5caa790d7224a08aafa78d35becf3ff93c61a2459fbe0a8df8dbb8fa177a36fe",
+    "test-case-inventory.json": "572b202acb4f1397c539dd30faa2dc7a4e1625a6a4c048c2f6529bd1ad112d51",
+    "validation/commands.sh": "e1e0929974e7d99ff93c0ba2638b864ddb5b1773096221a2ebf0d25b9e40752a",
+    "validation/e2e.log": "983efd86471d55e78f601bdb0e4ec9c26491d7a493db8dc214010f9590a75385",
+    "validation/example.log": "619cad76af34586397eaad4622feaa4dcb548cd70eac3bf48bf549dc1559a52f",
+    "validation/README.md": "f99b616609947fccf39076e58e978996edc1e02475cd7f6626eb912cedbca7f1",
+    "validation/unit.log": "67b1a557abe4157bdb3a5cec7256ff5f354efd73aa9693e32b980d86fc666f0c",
+    "validation/validation.json": "8086fd9eb6e1d2fd4f413eb01480a91791598941bae4129828aa7599c8428f94",
+    "validation/without-int64.log": "b5637a8245b77658ef1fcc62a5850e8a5db134c847a521baa08e8ff93dbea538",
+    "core-source/ascend/LICENSE": "1eb85fc97224598dad1852b5d6483bbcf0aa8608790dcc657a5a2a761ae9c8c6",
+    "core-source/upstream/LICENSE": "1eb85fc97224598dad1852b5d6483bbcf0aa8608790dcc657a5a2a761ae9c8c6",
+    "core-source/ascend/examples/rl/rlhf_sparse_hccl.py": "bc5d756b9db8b46afcd852b65ecdd00d1703255556933e8a9243f829a9ad452c",
+    "core-source/ascend/tests/e2e/pull_request/eight_card/test_sparse_hccl_checkpoint.py": "204f154c0106558466da210e49def674f7be5f4b7ed28a7967afefc16c4e5d52",
+    "core-source/ascend/tests/ut/ops/test_routed_experts.py": "cb6bf903b51e1760019e3b2f2fc813e853f43aa8682ff9c6e5e63139766c4d22",
+    "core-source/ascend/tests/ut/distributed/weight_transfer/test_sparse_hccl_engine.py": "406cff29888965923417cc50912bf218303dcddab6e76f1c56f7d3866fc43c5b",
+    "core-source/ascend/vllm_ascend/distributed/weight_transfer/hccl_engine.py": "1603fc97814256e35a973caf55a95e76ae711a795d582fd89d2192ffa35f1076",
+    "core-source/ascend/vllm_ascend/distributed/weight_transfer/sparse_hccl_engine.py": "5ba3f31cc805d166702649094e94f796712998425ebae3b4af37f98f3b49d984",
+    "core-source/ascend/vllm_ascend/distributed/weight_transfer/sparse_weight_patch.py": "819b584424ff628736d1cdb2a55ca9b031dc68643ae75b4cc9f6346e4f65ca1c",
+    "core-source/ascend/vllm_ascend/ops/fused_moe/routed_experts.py": "94507bc4c8d01c8f74036fab7b9fdc5f20a89dae5abb44be43ff523ef126d418",
+    "core-source/upstream/vllm/distributed/weight_transfer/base.py": "b23d45910d437056c4545b70efdc2f0f72ac88db33864a34f23e736e4b2c4ba0",
+    "core-source/upstream/vllm/distributed/weight_transfer/sparse_nccl_engine.py": "f84389b35f69a1a8f512b8bceaba43c8bf12d3f81dfcb1ea098108e8d24726f7",
+    "core-source/upstream/vllm/model_executor/model_loader/checkpoint_weight_patch.py": "a750d3278e0ec86098bc6a8eedbe1a2e7420155165668c67e9d6457c76b3204c",
+    "validation/example/server-command.json": "2f298b53d59587fc9ad5172d77e3118bd78c8ad6dfec905194bd3384a84b24af",
+    "validation/example/trainer-command.json": "bea72012dcaa71b408e2b0fee15f0ac40c9ad43791371dba300982f79b95144c",
+    "validation/example/trainer.log": "a833e588305116122aae5cab9fccccaadc166eebd254eedff08b2d788a546a64"
+  },
+  "audit": {
+    "pytest_nodeids": 80,
+    "manual_validation_items": 2,
+    "source_lines_verified": true,
+    "source_snapshots_parse": true,
+    "svg_xml_valid": true,
+    "png_rendered_and_visually_reviewed": true
+  },
+  "publication": {
+    "repository": "wangx700/Transmission-Transfer-Station",
+    "folder": "vllm-ascend-pr18915-sparse-hccl",
+    "includes_validation_records": true
+  }
+}

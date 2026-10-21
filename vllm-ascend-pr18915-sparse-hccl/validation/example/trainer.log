@@ -1,0 +1,7 @@
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Loading weights:   0%|          | 0/25 [00:00<?, ?it/s]Loading weights: 100%|██████████| 25/25 [00:00<00:00, 490.34it/s]
+[W1021 19:03:24.666628231 NPUCachingAllocator.cpp:202] Warning: The current CANN and HDK(driver) versions require processing for 32 padding size, with memory allocation. (function operator())
+before_token_ids= [365, 139, 400, 77]
+patched_checkpoint_names= ['model.layers.0.mlp.experts.0.gate_proj.weight', 'model.layers.0.mlp.experts.4.gate_proj.weight', 'model.layers.1.mlp.experts.0.gate_proj.weight', 'model.layers.1.mlp.experts.4.gate_proj.weight']
+num_sparse_values= 8192
+after_token_ids= [365, 139, 400, 77]

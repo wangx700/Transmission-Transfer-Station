@@ -1,0 +1,59 @@
+sequenceDiagram
+    autonumber
+    participant C as 调用方/示例
+    participant T as HCCL Trainer
+    participant R as RPC辅助线程/HTTP
+    participant W as 全部TP/PP/DP Workers
+    participant H as HCCL组
+    participant V as Loader Views
+    participant L as vLLM Checkpoint Loader
+    participant M as 模型参数
+    C->>C: 同一baseline，生成checkpoint坐标patch
+    C->>R: pause generation
+    C->>T: Factory.trainer_init(init_info)
+    T->>R: 辅助线程：init_weight_transfer_engine
+    R->>W: init_transfer_engine(rank_offset=1)
+    W->>W: 校验配置、world_size、rank
+    par Trainer rank 0
+        T->>H: 加入stateless group
+    and 所有worker
+        W->>H: rank=1+dp_rank*(TP*PP)+local_rank
+    end
+    H-->>T: rendezvous完成，等待worker初始化RPC
+    T-->>C: trainer engine
+    C->>T: send_weights(patches)
+    T->>T: prepare：校验、设备搬运、contiguous
+    Note over T,W: 空列表返回；列表内零nnz patch目前未过滤
+    T->>R: start_weight_update
+    R->>W: 配置/布局guard，不重新初始化权重
+    T->>R: 辅助线程：update_weights(metadata)
+    R->>W: 基类update_weights → receive_weights
+    par trainer主线程
+        T->>H: 每patch广播int32 indices及values
+    and 每一个worker
+        W->>H: 消费相同次序的全部广播
+    end
+    W->>W: indices转int64，然后按PP归属过滤
+    W->>V: enter checkpoint_loader_views
+    V->>M: 临时transpose视图，共享storage
+    W->>L: load_checkpoint_weight_patches
+    L->>L: 范围校验、NaN staging、按顺序分块
+    L->>M: model.load_weights：TP/EP/packed映射
+    M->>M: 最终copy仅替换非NaN元素
+    L-->>W: 应用完成
+    W->>V: 退出ExitStack，逆序关闭view
+    V->>M: 恢复原推理data视图
+    W->>W: 基类torch.accelerator.synchronize()
+    Note over W: 同步调用存在；跨ambient device目标尚无直接测试
+    W-->>R: update RPC返回
+    R-->>T: future.result完成
+    T->>T: 发送stream同步
+    T->>R: finish_weight_update
+    R->>W: sparse finish为no-op，框架结束session
+    T-->>C: send_weights返回
+    C->>T: shutdown communicator
+    C->>R: resume generation，仅成功路径
+    C->>R: completions请求
+    R->>M: 正常推理
+    M-->>R: tokens
+    R-->>C: HTTP response

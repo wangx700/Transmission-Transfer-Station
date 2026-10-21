@@ -1,0 +1,14 @@
+[
+  "/usr/local/python3.12.13/bin/python",
+  "/home/w00899129/pr18915-oct21.AxPrLW/source/examples/rl/rlhf_sparse_hccl.py",
+  "--model",
+  "/home/w00899129/pr18915-oct21.AxPrLW/example/checkpoint",
+  "--served-model-name",
+  "sparse-oracle",
+  "--url",
+  "http://127.0.0.1:43403",
+  "--tp",
+  "2",
+  "--pp",
+  "2"
+]

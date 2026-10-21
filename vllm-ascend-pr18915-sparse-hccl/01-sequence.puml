@@ -1,0 +1,66 @@
+@startuml
+title PR #18915 - sparse HCCL checkpoint updates
+autonumber
+skinparam sequenceMessageAlign center
+actor Caller as C
+participant "HCCL Trainer" as T
+participant "RPC thread / HTTP" as R
+participant "All TP/PP/DP workers" as W
+participant "HCCL group" as H
+participant "Loader views / ExitStack" as V
+participant "vLLM checkpoint loader" as L
+database "Model parameters" as M
+== Shared baseline and rendezvous ==
+C -> C: make_patches(checkpoint coordinates)
+C -> R: pause generation
+C -> T: Factory.trainer_init
+T ->> R: init_weight_transfer_engine (side thread)
+R -> W: init_transfer_engine
+W -> W: validate config / world_size / rank
+par trainer rank 0
+T -> H: join stateless group
+else worker ranks
+W -> H: rank=1+dp_rank*(TP*PP)+local_rank
+end
+H --> T: rendezvous complete
+T --> C: engine ready
+== One-shot update ==
+C -> T: send_weights(patches)
+T -> T: validate / normalize device and contiguity
+T -> R: start_weight_update
+R -> W: guards, preserve initialized weights
+T ->> R: update_weights(metadata) (side thread)
+R -> W: base update_weights -> receive_weights
+par trainer main thread
+T -> H: broadcast int32 indices and values
+else every worker
+W -> H: consume all broadcasts in identical order
+end
+W -> W: cast indices to int64; PP filter
+W -> V: enter all loader views
+V -> M: shared-storage transpose view
+W -> L: load_checkpoint_weight_patches
+L -> L: validate, NaN staging, ordered chunks
+L -> M: native load_weights / TP / EP / packed mapping
+M -> M: masked final copy
+L --> W: loaded
+W -> V: exit in reverse order
+V -> M: restore inference views
+W -> W: base torch.accelerator.synchronize()
+note right of W: Cross-ambient-device sync target
+has not been directly tested.
+W --> R: update RPC completed
+R --> T: future.result completed
+T -> T: synchronize sender stream
+T -> R: finish_weight_update
+R -> W: no-op sparse finish; close framework session
+T --> C: send_weights returned
+C -> T: shutdown communicator
+C -> R: resume (success only)
+C -> R: completions
+R -> M: inference
+M --> R: tokens
+R --> C: HTTP response
+note over V,M: Failure unwinds views, not weight values.
+Keep generation paused until recovery.
+@enduml

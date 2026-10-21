@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2100" height="2306" viewBox="0 0 2100 2306">
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#174b72"/></marker></defs>
+<rect width="2100" height="2306" fill="white"/>
+<g font-family="Segoe UI,Arial,sans-serif" fill="#18364d">
+<text x="30" y="35" font-size="23" font-weight="600">PR #18915 - Sparse HCCL update sequence</text>
+<text x="30" y="61" font-size="14">Ascend ee1f30111 / vLLM c4df37d | HTTP control plane + HCCL data plane | One trainer, distinct worker devices</text>
+<rect x="16" y="85" width="208" height="44" rx="5" fill="#edf4fa" stroke="#7593aa"/>
+<text x="120" y="112" text-anchor="middle" font-size="14">Caller / Example</text>
+<line x1="120" y1="129" x2="120" y2="2198" stroke="#b9c6cf" stroke-dasharray="5 5"/>
+<rect x="248" y="85" width="208" height="44" rx="5" fill="#edf4fa" stroke="#7593aa"/>
+<text x="352" y="112" text-anchor="middle" font-size="14">HCCL Trainer</text>
+<line x1="352" y1="129" x2="352" y2="2198" stroke="#b9c6cf" stroke-dasharray="5 5"/>
+<rect x="480" y="85" width="208" height="44" rx="5" fill="#edf4fa" stroke="#7593aa"/>
+<text x="584" y="112" text-anchor="middle" font-size="14">RPC thread / HTTP</text>
+<line x1="584" y1="129" x2="584" y2="2198" stroke="#b9c6cf" stroke-dasharray="5 5"/>
+<rect x="712" y="85" width="208" height="44" rx="5" fill="#edf4fa" stroke="#7593aa"/>
+<text x="816" y="112" text-anchor="middle" font-size="14">TP / PP / DP Workers</text>
+<line x1="816" y1="129" x2="816" y2="2198" stroke="#b9c6cf" stroke-dasharray="5 5"/>
+<rect x="944" y="85" width="208" height="44" rx="5" fill="#edf4fa" stroke="#7593aa"/>
+<text x="1048" y="112" text-anchor="middle" font-size="14">HCCL group</text>
+<line x1="1048" y1="129" x2="1048" y2="2198" stroke="#b9c6cf" stroke-dasharray="5 5"/>
+<rect x="1176" y="85" width="208" height="44" rx="5" fill="#edf4fa" stroke="#7593aa"/>
+<text x="1280" y="112" text-anchor="middle" font-size="14">Loader Views</text>
+<line x1="1280" y1="129" x2="1280" y2="2198" stroke="#b9c6cf" stroke-dasharray="5 5"/>
+<rect x="1408" y="85" width="208" height="44" rx="5" fill="#edf4fa" stroke="#7593aa"/>
+<text x="1512" y="112" text-anchor="middle" font-size="14">vLLM Loader</text>
+<line x1="1512" y1="129" x2="1512" y2="2198" stroke="#b9c6cf" stroke-dasharray="5 5"/>
+<rect x="1640" y="85" width="208" height="44" rx="5" fill="#edf4fa" stroke="#7593aa"/>
+<text x="1744" y="112" text-anchor="middle" font-size="14">Model parameters</text>
+<line x1="1744" y1="129" x2="1744" y2="2198" stroke="#b9c6cf" stroke-dasharray="5 5"/>
+<rect x="18" y="140" width="2064" height="32" fill="#e9eff4"/>
+<text x="30" y="162" font-size="15" font-weight="600">Shared baseline and group initialization</text>
+<path d="M120,207 h68 v17 h-68" fill="none" stroke="#174b72" marker-end="url(#arrow)"/>
+<text x="127" y="200" font-size="12">1. make checkpoint-coordinate patches</text>
+<line x1="120" y1="254" x2="584" y2="254" stroke="#174b72" marker-end="url(#arrow)"/>
+<text x="352.0" y="246" text-anchor="middle" font-size="12">2. pause generation</text>
+<line x1="120" y1="301" x2="352" y2="301" stroke="#174b72" marker-end="url(#arrow)"/>
+<text x="236.0" y="293" text-anchor="middle" font-size="12">3. Factory.trainer_init</text>
+<line x1="352" y1="348" x2="584" y2="348" stroke="#174b72" marker-end="url(#arrow)"/>
+<text x="468.0" y="340" text-anchor="middle" font-size="12">4. init RPC (side thread)</text>
+<line x1="584" y1="395" x2="816" y2="395" stroke="#174b72" marker-end="url(#arrow)"/>
+<text x="700.0" y="387" text-anchor="middle" font-size="12">5. init worker engine</text>
+<path d="M816,442 h68 v17 h-68" fill="none" stroke="#174b72" marker-end="url(#arrow)"/>
+<text x="823" y="435" font-size="12">6. validate world_size / rank</text>
+<line x1="352" y1="489" x2="1048" y2="489" stroke="#174b72" marker-end="url(#arrow)"/>
+<text x="700.0" y="481" text-anchor="middle" font-size="12">7. trainer joins as rank 0</text>
+<line x1="816" y1="536" x2="1048" y2="536" stroke="#174b72" marker-end="url(#arrow)"/>
+<text x="932.0" y="528" text-anchor="middle" font-size="12">8. workers join ranks 1..N (concurrent)</text>
+<line x1="1048" y1="583" x2="352" y2="583" stroke="#174b72" marker-end="url(#arrow)" stroke-dasharray="5 4"/>
+<text x="700.0" y="575" text-anchor="middle" font-size="12">9. group ready</text>
+<rect x="18" y="610" width="2064" height="32" fill="#e9eff4"/>
+<text x="30" y="632" font-size="15" font-weight="600">One-shot sparse update</text>
+<line x1="120" y1="677" x2="352" y2="677" stroke="#174b72" marker-end="url(#arrow)"/>
+<text x="236.0" y="669" text-anchor="middle" font-size="12">10. send_weights(patches)</text>
+<path d="M352,724 h68 v17 h-68" fill="none" stroke="#174b72" marker-end="url(#arrow)"/>
+<text x="359" y="717" font-size="12">11. validate / normalize payload</text>
+<line x1="352" y1="771" x2="584" y2="771" stroke="#174b72" marker-end="url(#arrow)"/>
+<text x="468.0" y="763" text-anchor="middle" font-size="12">12. start_weight_update</text>
+<line x1="584" y1="818" x2="816" y2="818" stroke="#174b72" marker-end="url(#arrow)"/>
+<text x="700.0" y="810" text-anchor="middle" font-size="12">13. configuration / layout guards</text>
+<line x1="352" y1="865" x2="584" y2="865" stroke="#174b72" marker-end="url(#arrow)"/>
+<text x="468.0" y="857" text-anchor="middle" font-size="12">14. update RPC (side thread)</text>
+<line x1="584" y1="912" x2="816" y2="912" stroke="#174b72" marker-end="url(#arrow)"/>
+<text x="700.0" y="904" text-anchor="middle" font-size="12">15. base update -&gt; receive</text>
+<line x1="352" y1="959" x2="1048" y2="959" stroke="#174b72" marker-end="url(#arrow)"/>
+<text x="700.0" y="951" text-anchor="middle" font-size="12">16. broadcast int32 indices / values</text>
+<line x1="1048" y1="1006" x2="816" y2="1006" stroke="#174b72" marker-end="url(#arrow)"/>
+<text x="932.0" y="998" text-anchor="middle" font-size="12">17. receive ALL broadcasts (concurrent)</text>
+<path d="M816,1053 h68 v17 h-68" fill="none" stroke="#174b72" marker-end="url(#arrow)"/>
+<text x="823" y="1046" font-size="12">18. int64 conversion; then PP filter</text>
+<line x1="816" y1="1100" x2="1280" y2="1100" stroke="#174b72" marker-end="url(#arrow)"/>
+<text x="1048.0" y="1092" text-anchor="middle" font-size="12">19. enter loader views</text>
+<line x1="1280" y1="1147" x2="1744" y2="1147" stroke="#174b72" marker-end="url(#arrow)"/>
+<text x="1512.0" y="1139" text-anchor="middle" font-size="12">20. transpose shared-storage views</text>
+<line x1="816" y1="1194" x2="1512" y2="1194" stroke="#174b72" marker-end="url(#arrow)"/>
+<text x="1164.0" y="1186" text-anchor="middle" font-size="12">21. checkpoint patches</text>
+<path d="M1512,1241 h68 v17 h-68" fill="none" stroke="#174b72" marker-end="url(#arrow)"/>
+<text x="1519" y="1234" font-size="12">22. bounds checks / NaN staging</text>
+<line x1="1512" y1="1288" x2="1744" y2="1288" stroke="#174b72" marker-end="url(#arrow)"/>
+<text x="1628.0" y="1280" text-anchor="middle" font-size="12">23. native TP / EP / packed load</text>
+<path d="M1744,1335 h68 v17 h-68" fill="none" stroke="#174b72" marker-end="url(#arrow)"/>
+<text x="1751" y="1328" font-size="12">24. masked copy; preserve old values</text>
+<line x1="1512" y1="1382" x2="816" y2="1382" stroke="#174b72" marker-end="url(#arrow)" stroke-dasharray="5 4"/>
+<text x="1164.0" y="1374" text-anchor="middle" font-size="12">25. loading returns</text>
+<line x1="816" y1="1429" x2="1280" y2="1429" stroke="#174b72" marker-end="url(#arrow)"/>
+<text x="1048.0" y="1421" text-anchor="middle" font-size="12">26. reverse-order cleanup</text>
+<line x1="1280" y1="1476" x2="1744" y2="1476" stroke="#174b72" marker-end="url(#arrow)"/>
+<text x="1512.0" y="1468" text-anchor="middle" font-size="12">27. restore inference views</text>
+<path d="M816,1523 h68 v17 h-68" fill="none" stroke="#174b72" marker-end="url(#arrow)"/>
+<text x="823" y="1516" font-size="12">28. base accelerator synchronize</text>
+<line x1="816" y1="1570" x2="584" y2="1570" stroke="#174b72" marker-end="url(#arrow)" stroke-dasharray="5 4"/>
+<text x="700.0" y="1562" text-anchor="middle" font-size="12">29. update RPC returns</text>
+<line x1="584" y1="1617" x2="352" y2="1617" stroke="#174b72" marker-end="url(#arrow)" stroke-dasharray="5 4"/>
+<text x="468.0" y="1609" text-anchor="middle" font-size="12">30. future.result returns</text>
+<path d="M352,1664 h68 v17 h-68" fill="none" stroke="#174b72" marker-end="url(#arrow)"/>
+<text x="359" y="1657" font-size="12">31. sender stream synchronize</text>
+<line x1="352" y1="1711" x2="584" y2="1711" stroke="#174b72" marker-end="url(#arrow)"/>
+<text x="468.0" y="1703" text-anchor="middle" font-size="12">32. finish_weight_update</text>
+<line x1="584" y1="1758" x2="816" y2="1758" stroke="#174b72" marker-end="url(#arrow)"/>
+<text x="700.0" y="1750" text-anchor="middle" font-size="12">33. no-op sparse finish / end session</text>
+<line x1="352" y1="1805" x2="120" y2="1805" stroke="#174b72" marker-end="url(#arrow)" stroke-dasharray="5 4"/>
+<text x="236.0" y="1797" text-anchor="middle" font-size="12">34. send_weights returns</text>
+<rect x="18" y="1832" width="2064" height="32" fill="#e9eff4"/>
+<text x="30" y="1854" font-size="15" font-weight="600">Success: release transfer resources and resume</text>
+<line x1="120" y1="1899" x2="352" y2="1899" stroke="#174b72" marker-end="url(#arrow)"/>
+<text x="236.0" y="1891" text-anchor="middle" font-size="12">35. shutdown communicator</text>
+<line x1="120" y1="1946" x2="584" y2="1946" stroke="#174b72" marker-end="url(#arrow)"/>
+<text x="352.0" y="1938" text-anchor="middle" font-size="12">36. resume generation</text>
+<line x1="120" y1="1993" x2="584" y2="1993" stroke="#174b72" marker-end="url(#arrow)"/>
+<text x="352.0" y="1985" text-anchor="middle" font-size="12">37. completions request</text>
+<line x1="584" y1="2040" x2="1744" y2="2040" stroke="#174b72" marker-end="url(#arrow)"/>
+<text x="1164.0" y="2032" text-anchor="middle" font-size="12">38. normal inference</text>
+<line x1="1744" y1="2087" x2="584" y2="2087" stroke="#174b72" marker-end="url(#arrow)" stroke-dasharray="5 4"/>
+<text x="1164.0" y="2079" text-anchor="middle" font-size="12">39. tokens</text>
+<line x1="584" y1="2134" x2="120" y2="2134" stroke="#174b72" marker-end="url(#arrow)"/>
+<text x="352.0" y="2126" text-anchor="middle" font-size="12">40. HTTP response</text>
+<text x="30" y="2234" font-size="14">Failure: unwind entered views in reverse order; no finish/resume after a failed send. Restoring views does not roll back weights.</text>
+<text x="30" y="2258" font-size="14">All workers receive before PP filtering. Wire indices stay int32; loader indices are int64. Staging remains O(N).</text>
+<text x="30" y="2282" font-size="14">Base synchronization exists; the cross-ambient-device target is not directly covered. See Markdown for parallel blocks and failure detail.</text>
+</g></svg>
