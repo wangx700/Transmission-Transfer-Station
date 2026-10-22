@@ -1,0 +1,141 @@
+Source: verl-sglang/verl/verl/workers/engine/megatron/transformer_impl.py
+HEAD: 5026915b60fb0a99a0d6e929b4b5af9a4ceae1f8
+Worktree status:  M verl/workers/engine/megatron/transformer_impl.py
+Source SHA256: A6466E0A9EEAA55276DEACA1C16E0FFD432B577EFB66B058E2071CD12EC9A640
+
+0150:                 "DCP router replay produced fewer route tensors than scheduled samples: "
+0151:                 f"need {end}, got {len(recorded_routes)}"
+0152:             )
+0153:         micro_output.setdefault("model_output", {})["routed_experts"] = torch.nested.as_nested_tensor(
+0154:             recorded_routes[cursor:end], layout=torch.jagged
+0155:         )
+0156:         cursor = end
+0157: 
+0158:     if cursor != len(recorded_routes):
+0159:         raise RuntimeError(
+0160:             f"DCP router replay produced unconsumed route tensors: consumed {cursor}, recorded {len(recorded_routes)}"
+0161:         )
+0162: 
+0163: 
+0164: class MegatronEngine(BaseEngine):
+0165:     # mcore keeps model-parallel-local params resident and moves large host
+0166:     # buffers every step; pinning the whole delta snapshot set on top of that
+0167:     # starves the node's cudaHostAlloc pool and surfaces as CUDA OOM in
+0168:     # unrelated allocations (observed at 30B/235B) -- pageable is the safe
+0169:     # default here.
+0170:     delta_pin_snapshots = False
+0171: 
+1020:         if enable_routing_replay:
+1021:             RouterReplay.clear_global_indices()
+1022:             RouterReplay.clear_global_router_replay_action()
+1023:         return output
+1024: 
+1025:     def _mbridge_export_tasks(self):
+1026:         """Cache static export tasks while preserving Bridge's specialized FP8 task planning."""
+1027:         if getattr(self.bridge, "export_weight_dtype", None) == "fp8":
+1028:             return None
+1029:         if self._hf_export_tasks is None: # 目录只算一次（参数集合静态）
+1030:             self._hf_export_tasks = self.bridge.get_conversion_tasks(self.module)
+1031:         return self._hf_export_tasks
+1032: 
+1033:     def get_per_tensor_param(self, base_sync_done=False, **kwargs):
+1034:         # ---- 返回值契约：(惰性生成器 (hf_name, full_tensor), peft_config|None) ----
+1035:         # 消费方：① naive 同步（engine_workers）② delta_sharded 首次 seed（_send_full_seed）
+1036:         #        ③ verify_every 的稠密校验重放
+1037:         peft_config = None
+1038:         non_merge_lora_sync = self.peft_cls is not None and not self.model_config.lora.get("merge", False)
+1039:         adapter_only = base_sync_done and non_merge_lora_sync
+1040:         if non_merge_lora_sync:
+1041:             peft_config = build_peft_config_for_vllm(self.model_config.lora)
+1042:         # when lora adapter only, we only load adapter weights when base sync is done, otherwise load all weights
+1043:         load_megatron_model_to_gpu(self.module, load_grad=False, load_frozen_params=not adapter_only)
+1044:         if self.vanilla_bridge:
+1045:             per_tensor_param = self.bridge.export_weights(self.module)
+1046:         elif adapter_only:
+1047:             per_tensor_param = self.bridge.export_adapter_weights(self.module)
+1048:         else:
+1049:             conversion_tasks = self._mbridge_export_tasks()
+1050:             per_tensor_param = (
+1051:                 # export_hf_weights 返回的是惰性生成器，每 yield 一个 (hf_name, full_tensor) 都要在 bridge 内部跑真实的 TP all-gather / EP gather / PP 汇集
+1052:                 self.bridge.export_hf_weights( # bridge 完成 megatron→HF 命名/转换 + TP/EP/PP 聚合
+1053:                     self.module,
+1054:                     conversion_tasks=conversion_tasks,
+1055:                     merge_adapter_weights=False,
+1056:                 )
+1057:                 if non_merge_lora_sync
+1058:                 else self.bridge.export_hf_weights(self.module, conversion_tasks=conversion_tasks)
+1059:             )
+1060: 
+1061:         # QAT: process weights through QATWeightExporter for quantized weight sync to vLLM
+1062:         if self._qat_enabled:
+1063:             from verl.utils.modelopt import export_qat_weights
+1064: 
+1065:             per_tensor_param = export_qat_weights(per_tensor_param, self.module, self._qat_config.mode, self.bridge)
+1066: 
+1067:         return per_tensor_param, peft_config
+1068: 
+1069:     def _mcore_export_index(self):
+1070:         """Build (once) the per-parameter delta export index: geometry specs and
+1071:         form-B probes derived from the bridge's conversion tasks. See
+1072:         :mod:`verl.workers.engine.megatron.delta_export`."""
+1073:         index = getattr(self, "_delta_export_index", None)
+1074:         if index is None:
+1075:             from .delta_export import build_export_index
+1076: 
+1077:             assert not self.vanilla_bridge, (
+1078:                 "megatron delta_sharded is built on Megatron-Bridge param mappings; "
+1079:                 "the deprecated vanilla mbridge flavor is not supported"
+1080:             )
+1081:             assert self.peft_cls is None, "megatron delta_sharded does not support LoRA"
+1082:             self._delta_slot_cache: dict = {}
+1083:             index = build_export_index(self.bridge, self.module, self._delta_slot_cache)
+1084:             self._delta_export_index = index
+1085:             self._delta_export_by_name = {rec.megatron_name: rec for rec in index}
+1086:         return index
+1087: 
+1088:     def get_per_tensor_param_shard(self, **kwargs):
+1089:         # 逐 shard + ShardSpec 消费
+1090:         """Yield each rank's *local* mcore shard ``(name, local_flat_bf16,
+1091:         ShardSpec)`` -- the spec carries only the wire merge group (the
+1092:         comm-stubbed probe owns all shard geometry). Pure export, no side
+1093:         effects. Params owned by another pipeline stage yield an empty shard
+1094:         (zero-count lockstep rows; see the index builder)."""
+1095:         load_megatron_model_to_gpu(self.module, load_grad=False)
+1096:         index = self._mcore_export_index() # 这个是建立统一的index?
+1097: 
+1098:         def _gen():
+1099:             empty = torch.empty(0, dtype=torch.bfloat16, device=get_device_id())
+1100:             for rec in index:
+1101:                 if rec.param is None:
+1102:                     yield rec.megatron_name, empty, rec.spec
+1103:                     continue
+1104:                 local = rec.param.data
+1105:                 if local.is_floating_point() and local.dtype != torch.bfloat16:
+1106:                     local = local.to(torch.bfloat16)
+1107:                 yield rec.megatron_name, local.reshape(-1), rec.spec
+1108: 
+1109:         return _gen(), None
+1110: 
+1111:     def _hf_delta_entry(self, name, spec, place, lidx, lval):
+1112:         """mcore's per-param entry builder: probe the bridge's own converter
+1113:         (comm-stubbed copy -- real group sizes, gathers synthesized locally)
+1114:         with NaN sentinels -- see
+1115:         :func:`verl.workers.engine.megatron.delta_export.mcore_hf_delta_entry`."""
+1116:         from .delta_export import mcore_hf_delta_entry
+1117: 
+1118:         rec = self._delta_export_by_name[name]
+1119:         return mcore_hf_delta_entry(rec, place, lidx, lval, self._delta_slot_cache)
+1120: 
+1121:     def get_per_tensor_param_delta_shard(self, **kwargs):
+1122:         """Yield the delta engine's steady payloads -- FINAL HF-coordinate entries
+1123:         per mcore parameter (see the FSDP engine's method of the same name for the
+1124:         contract; MegatronEngine extends BaseEngine directly, so the thin wrapper
+1125:         is repeated here). Requires a prior :meth:`prime_delta_snapshots` call."""
+1126:         from ..utils import hf_delta_export # hf_delta_export 会在_delta_shard_snap上原地 snap.copy_ 刷新
+1127: 
+1128:         self._delta_shard_snap = getattr(self, "_delta_shard_snap", {}) # diff 基线字典 {mcore 参数名: CPU 快照}，懒创建。
+1129:         # 原始 shard 导出器（纯导出、无副作用）：逐参数 yield
+1130:         # (megatron_name, local_flat_bf16, ShardSpec) —— 每 rank 只有自己的本地 shard
+1131:         gen, _ = self.get_per_tensor_param_shard()
+1132:         return hf_delta_export(gen, self._delta_shard_snap, self._hf_delta_entry), None
+1133: 

@@ -1,0 +1,166 @@
+Source: verl-sglang/verl/verl/checkpoint_engine/delta_checkpoint_engine.py
+HEAD: 5026915b60fb0a99a0d6e929b4b5af9a4ceae1f8
+Worktree status:  M verl/checkpoint_engine/delta_checkpoint_engine.py
+Source SHA256: E291F329E537C51DB894739DDAC372EA24AC109452D21706DCC7537E8B348FF4
+
+0270:     def _publish_flush(self, flush: DeltaFlush, first: bool, is_last: bool) -> None:
+0271:         meta = {
+0272:             "is_full": first,
+0273:             "encoding": self.encoding,
+0274:             "is_last": is_last,
+0275:             "terminal_empty": False,
+0276:             "pos_numel": int(flush.positions_cpu.numel()),
+0277:             "val_numel": int(flush.values_gpu.numel()),
+0278:             "val_dtype": str(flush.values_gpu.dtype).replace("torch.", ""),
+0279:             "spec": {
+0280:                 "encoding": self.encoding,
+0281:                 "params": [vars(p) for p in flush.params],
+0282:                 "checksum": int(flush.checksum),
+0283:             },
+0284:         }
+0285:         self.socket.send_string(self.topic, flags=zmq.SNDMORE)
+0286:         self.socket.send_pyobj(meta)
+0287:         pos_u8 = flush.positions_cpu.to("cuda", non_blocking=True).contiguous().view(torch.uint8)
+0288:         val_u8 = flush.values_gpu.contiguous().view(torch.uint8)
+0289:         # Stage into cupy-owned buffers: ray's NCCL broadcast is enqueued on a separate
+0290:         # stream with no recordStream on its inputs, so broadcasting a zero-copy view of
+0291:         # these torch tensors (freed right after this call) would race with allocator reuse.
+0292:         pos_cp = cp.empty(pos_u8.numel(), dtype=cp.uint8)
+0293:         val_cp = cp.empty(val_u8.numel(), dtype=cp.uint8)
+0294:         pos_cp[:] = cp.asarray(pos_u8)
+0295:         val_cp[:] = cp.asarray(val_u8)
+0296:         collective.broadcast(pos_cp, src_rank=0, group_name=self.group_name)
+0297:         collective.broadcast(val_cp, src_rank=0, group_name=self.group_name)
+0298: 
+0299:     def _publish_values_flush(
+0300:         self, params: list[DeltaParam], values: torch.Tensor, is_last: bool, verify: bool = False
+0301:     ) -> None:
+0302:         """Publish a values-only (full-coverage, positions-free) flush -- used by the first
+0303:         sync. The wire encoding tag stays ``"dense"`` -- it is protocol, shared with the
+0304:         receiver's delta_loader decode."""
+0305:         values = values.contiguous()
+0306:         empty_pos = torch.empty(0, dtype=torch.uint8, device=values.device)
+0307:         meta = {
+0308:             "is_full": True,
+0309:             "encoding": "dense",
+0310:             "is_last": is_last,
+0311:             "terminal_empty": False,
+0312:             "pos_numel": 0,
+0313:             "val_numel": int(values.numel()),
+0314:             "val_dtype": str(values.dtype).replace("torch.", ""),
+0315:             "spec": {
+0316:                 "encoding": "dense",
+0317:                 "verify": verify,
+0318:                 "is_last": is_last,
+0319:                 "params": [vars(p) for p in params],
+0320:                 "checksum": int(_checksum(empty_pos, values)),
+0321:             },
+0322:         }
+0323:         self.socket.send_string(self.topic, flags=zmq.SNDMORE)
+0324:         self.socket.send_pyobj(meta)
+0325:         val_u8 = values.view(torch.uint8)
+0326:         # cupy-owned staging: same lifetime rationale as _publish_flush.
+0327:         val_cp = cp.empty(val_u8.numel(), dtype=cp.uint8)
+0328:         val_cp[:] = cp.asarray(val_u8)
+0329:         collective.broadcast(val_cp, src_rank=0, group_name=self.group_name)
+0330: 
+0570:             "checkpoint_engine/flushes": float(n_flushes),
+0571:         }
+0572: 
+0573:     async def send_weights(
+0574:         self,
+0575:         engine,
+0576:         global_steps: int | None = None,
+0577:     ) -> dict[str, float] | None:
+0578:         """Drive one weight sync from the TRAINING ENGINE (unlike the full-sync
+0579:         engines, which consume a weights iterator): the seed/steady phase choice
+0580:         and the snapshot prime are this engine's own state machine, so the worker
+0581:         stays delta-agnostic. The seed (first sync) streams the backend's full
+0582:         ``get_per_tensor_param()`` export over the values-only wire, then pins the
+0583:         diff base via ``engine.prime_delta_snapshots()``; every later sync consumes
+0584:         ``get_per_tensor_param_delta_shard()`` (backend-computed final-HF deltas).
+0585:         """
+0586:         # All actor ranks participate (gather-v is collective); only torch rank 0 broadcasts.
+0587:         # rank 0 accumulates the gathered per-param deltas into bucket_size-sized flushes and streams
+0588:         # each one as soon as it fills (then frees it), so peak memory is ~2 buckets rather than the
+0589:         # whole model.
+0590:         assert self.rank <= 0, "Trainer workers other than rank 0 should not send weights."
+0591:         if not self._shard_seeded:
+0592:             full, _ = engine.get_per_tensor_param() # 获取全量权重
+0593:             metrics = self._send_full_seed(full, global_steps)
+0594:             # weights do not move during the sync, so the snapshots equal exactly
+0595:             # what the rollout just received.
+0596:             engine.prime_delta_snapshots() # 将每个卡上的自己的 mcore shard 存 CPU -- 走的base.py
+0597:             # The seed is complete only after its baseline snapshots are ready.
+0598:             self._shard_seeded = True # 每张卡各自置位
+0599:             return metrics
+0600:         weights, _ = engine.get_per_tensor_param_delta_shard() # 生成diff权重的六元组
+0601:         is_r0 = self.is_master
+0602:         n_flushes = 0
+0603:         changed_elems = 0
+0604:         total_elems = 0
+0605:         wire_bytes = 0
+0606: 
+0607:         def _publish_steady(flush, is_last: bool) -> None:
+0608:             nonlocal n_flushes
+0609:             self._publish_flush(flush, first=False, is_last=is_last)
+0610:             n_flushes += 1
+0611: 
+0612:         bkt = _FlushBucket(self.bucket_size, self._assemble_flush, _publish_steady)
+0613: 
+0614:         batch_k = self.batch_gather
+0615: 
+0616:         def _bucket_slot_delta(
+0617:             name: str,
+0618:             dtype_str: str,
+0619:             full_shape: tuple,
+0620:             full_numel: int,
+0621:             aidx: torch.Tensor | None,
+0622:             aval: torch.Tensor | None,
+0623:         ) -> None:
+0624:             nonlocal total_elems, changed_elems, wire_bytes
+0625:             total_elems += int(full_numel)
+0626:             if aidx is None or aidx.numel() == 0:
+0627:                 return
+0628:             changed_elems += int(aidx.numel())
+0629:             wire_bytes += int(aidx.numel()) * (4 + aval.element_size())
+0630:             _bucket_sliced(bkt, name, dtype_str, full_shape, aidx, aval)
+0631: 
+0632:         gq = _GatherQueue(batch_k, self.bucket_size, is_r0, _bucket_slot_delta)
+0633: 
+0634:         # ``weights`` is the BACKEND's HF delta stream (hf_delta_export): entries
+0635:         # already carry final HF coordinates -- naming, conversion, diff and
+0636:         # snapshot all happened on the backend side. This engine only batches,
+0637:         # gathers and ships.
+0638:         for slots, dtype_str, counts, hf_idx, hf_val, pg in weights:
+0639:             gq.put(pg, slots, dtype_str, counts, hf_idx, hf_val)
+0640:         gq.flush_all()
+0641: 
+0642:         # For SGLang, verify_every=K appends a dense state-verification sweep to
+0643:         # every K-th steady sync inside the same receive stream. The steady bucket
+0644:         # keeps ``is_last`` unset, and the sweep's final flush carries it. The
+0645:         # receiver bit-compares each destination before overwriting it and fails
+0646:         # on any mismatch (see delta_loader._verify_dense).
+0647:         verify = self._verify_due()
+0648:         if is_r0:
+0649:             bkt.seal()  # seal the final partial bucket into the pending flush
+0650:             if bkt.pending is not None:
+0651:                 bkt.emit(is_last=not verify)
+0652:             elif not verify:
+0653:                 self._publish_terminal(False)
+0654:         if verify:
+0655:             # collective on every rank: the full export assembles per tensor.
+0656:             full, _ = engine.get_per_tensor_param()
+0657:             self._send_full_seed(full, global_steps, verify=True)
+0658:         if not is_r0:
+0659:             return
+0660:         self._release_staging_pool("steady")  # return staging blocks to CUDA between syncs
+0661:         logger.info("delta-sharded send v=%s delta flushes=%d (streamed)", global_steps, n_flushes)
+0662:         if not total_elems:
+0663:             return None
+0664:         return {
+0665:             "checkpoint_engine/changed_ratio": changed_elems / total_elems,
+0666:             "checkpoint_engine/changed_elems": float(changed_elems),
+0667:             "checkpoint_engine/payload_mbytes": wire_bytes / (1 << 20),
+0668:             "checkpoint_engine/flushes": float(n_flushes),
+0669:         }
