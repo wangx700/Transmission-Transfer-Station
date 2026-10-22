@@ -1,0 +1,182 @@
+Source: ascend-pr18915-backport/vllm_ascend/distributed/weight_transfer/sparse_hccl_engine.py
+HEAD: fd815467c221ee600137f6bdd53fe354d5e7c999
+Worktree status: ?? vllm_ascend/distributed/weight_transfer/sparse_hccl_engine.py
+Source SHA256: D91345D5E6A83CB83EA2F5EC3887E8F27E87C44A7D41A70DEE1A5825B228AFCE
+
+0064: def checkpoint_loader_views(model: torch.nn.Module) -> ExitStack:
+0065:     """Expose loader layouts while preserving the inference tensor storage."""
+0066:     stack = ExitStack()
+0067:     try:
+0068:         for layer in model.modules():
+0069:             method = getattr(layer, "quant_method", None)
+0070:             view = getattr(method, "checkpoint_weight_loader_view", None)
+0071:             if view is not None:
+0072:                 stack.enter_context(view(layer))
+0073:     except BaseException:
+0074:         stack.close()
+0075:         raise
+0076:     return stack
+0077: 
+0078: 
+0079: @dataclass
+0080: class SparseHCCLTrainerInitInfo(SparseNCCLTrainerInitInfo):
+0081:     """Trainer-side init info for the sparse HCCL weight transfer backend.
+0082: 
+0083:     Same rendezvous shape as the dense HCCL backend (the sender opens its
+0084:     endpoint as HCCL rank 0), with no packed sparse transport.
+0085:     `backend` is the factory dispatch key."""
+0086: 
+0087:     backend: ClassVar[str] = "sparse_hccl"
+0088: 
+0089: 
+0090: @dataclass
+0091: class SparseHCCLWeightTransferUpdateInfo(SparseNCCLWeightTransferUpdateInfo):
+0092:     """Update info for the sparse HCCL weight transfer backend."""
+0093: 
+0094:     dense: bool = False
+0095:     """Transmit complete checkpoint values without indices for bootstrap."""
+0096: 
+0097:     def __post_init__(self) -> None:
+0098:         if type(self.dense) is not bool:
+0099:             raise ValueError("dense must be a boolean")
+0100:         num_params = len(self.names)
+0101:         if len(self.dtype_names) != num_params:
+0102:             raise ValueError(
+0103:                 f"`dtype_names` should be of the same size as `names`: "
+0104:                 f"got {len(self.dtype_names)} and {len(self.names)}"
+0105:             )
+0106:         if len(self.shapes) != num_params:
+0107:             raise ValueError(
+0108:                 f"`shapes` should be of the same size as `names`: got {len(self.shapes)} and {len(self.names)}"
+0109:             )
+0110:         if len(self.num_updates_list) == 0:
+0111:             raise ValueError("`num_updates_list` cannot be empty for sparse updates")
+0112:         if len(self.num_updates_list) != num_params:
+0113:             raise ValueError(
+0114:                 f"`num_updates_list` should be of the same size as `names`: "
+0115:                 f"got {len(self.num_updates_list)} and {len(self.names)}"
+0116:             )
+0117:         if any(num_updates < 0 for num_updates in self.num_updates_list):
+0118:             raise ValueError("Sparse `num_updates_list` entries must be non-negative")
+0119:         for name, dtype_name, shape, count in zip(
+0120:             self.names, self.dtype_names, self.shapes, self.num_updates_list, strict=True
+0121:         ):
+0122:             dtype = getattr(torch, dtype_name, None)
+0123:             if not isinstance(name, str) or not name:
+0124:                 raise ValueError("Sparse checkpoint name must be non-empty")
+0125:             if dtype not in SPARSE_HCCL_VALUE_DTYPES:
+0126:                 raise ValueError(f"Sparse checkpoint dtype must be floating: {name}")
+0127:             if any(type(dim) is not int or dim < 0 for dim in shape):
+0128:                 raise ValueError(f"Invalid checkpoint shape: {name}")
+0129:             if type(count) is not int:
+0130:                 raise ValueError(f"Sparse update count must be an integer: {name}")
+0131:             if self.dense and count != prod(shape):
+0132:                 raise ValueError(f"Dense update count must match checkpoint shape: {name}")
+0133: 
+0134: 
+0135: class SparseHCCLWeightTransferEngine(
+0136:     WeightTransferEngine[HCCLWeightTransferInitInfo, SparseHCCLWeightTransferUpdateInfo]
+0137: ):
+0138:     """
+0139:     Sparse weight transfer engine using HCCL.
+0140: 
+0141:     Receives checkpoint-coordinate patches broadcast from the trainer and applies
+0142:     them through the model's native weight loader. Sparse updates modify initialized
+0143:     model tensors in place, so the layerwise reload lifecycle is not used.
+0144:     """
+0145: 
+0146:     init_info_cls = HCCLWeightTransferInitInfo
+0147:     update_info_cls = SparseHCCLWeightTransferUpdateInfo
+0148:     supports_draft_weight_update = False
+0149: 
+0150:     def __init__(
+0151:         self,
+0152:         config: WeightTransferConfig,
+0153:         vllm_config: "VllmConfig",
+0154:         device: torch.device,
+0155:         model: torch.nn.Module,
+0156:     ) -> None:
+0157:         super().__init__(config, vllm_config, device, model)
+0158:         self.model_update_group: PyHcclCommunicator | None = None
+0159: 
+0160:     def init_transfer_engine(self, init_info: HCCLWeightTransferInitInfo) -> None:
+0161:         """Initialize the HCCL process group with the trainer."""
+0162:         self.start_weight_update()
+0163:         workers = self.parallel_config.world_size * self.parallel_config.data_parallel_size
+0164:         if init_info.rank_offset != 1 or init_info.world_size != workers + 1:
+0165:             raise ValueError(
+0166:                 "Sparse HCCL requires one trainer and all TP/PP/DP workers: world_size=1+TP*PP*DP, rank_offset=1"
+0167:             )
+0168:         HCCLWeightTransferEngine.init_transfer_engine(self, init_info)
+0169: 
+0170:     def start_weight_update(self) -> None:
+0171:         """Validate support without reinitializing the existing model weights."""
+0172:         if self.parallel_config.enable_eplb:
+0173:             raise NotImplementedError("Sparse HCCL does not support EPLB")
+0174:         if self.model_config.quantization is not None:
+0175:             raise NotImplementedError("Sparse HCCL requires unquantized floating-point weights")
+0176:         for layer in self.model.modules():
+0177:             method = getattr(layer, "quant_method", None)
+0178:             validate = getattr(method, "validate_checkpoint_weight_loader_view", None)
+0179:             if validate is not None:
+0180:                 validate(layer)
+0181:         for parameter in self.model.parameters():
+0182:             if parameter.device.type == "npu":
+0183:                 import torch_npu
+0184: 
+0185:                 if torch_npu.get_npu_format(parameter) not in (0, 2):
+0186:                     raise NotImplementedError("Sparse HCCL requires ND model weights (weight_nz_mode=0)")
+0187: 
+0188:     def finish_weight_update(self) -> None:
+0189:         """No-op: sparse patches are applied in place, no layerwise reload."""
+0190:         pass
+0191: 
+0192:     def receive_weights(self, update_info: SparseHCCLWeightTransferUpdateInfo) -> None:
+0193:         """Receive sparse flat-index patches from the trainer and apply them."""
+0194:         if self.model_update_group is None:
+0195:             raise RuntimeError("HCCL weight transfer not initialized. Call init_transfer_engine() first.")
+0196: 
+0197:         # Receive on the communicator's device rather than relying on the
+0198:         # ambient current device in the RPC thread.
+0199:         device = self.model_update_group.device
+0200:         with torch.npu.device(device):
+0201:             stream = torch.npu.current_stream(device=device)
+0202:             profile = WeightTransferProfiler(device=device)
+0203:             with profile.measure("receiver_receive"):
+0204:                 patches = self._receive_patches(update_info, stream)
+0205:             # All ranks consume the complete wire payload before PP selection.
+0206:             with profile.measure("receiver_pp_filter"):
+0207:                 patches = [patch for patch in patches if not is_pp_missing_parameter(patch.name, self.model)]
+0208:             with profile.measure("receiver_apply"):
+0209:                 direct_apply = None
+0210:                 if not update_info.dense and os.environ.get("VIME_SPARSE_MOE_DIRECT", "0") == "1":
+0211:                     from vllm_ascend.distributed.weight_transfer.sparse_moe_direct import apply_direct_moe_patches
+0212: 
+0213:                     def direct_apply(validated):
+0214:                         with profile.measure_host("receiver_moe_direct"):
+0215:                             return apply_direct_moe_patches(self.model, validated)
+0216: 
+0217:                 load_checkpoint_weight_patches(
+0218:                     self.model,
+0219:                     patches,
+0220:                     phase_observer=profile.measure_host,
+0221:                     sparse_apply=direct_apply,
+0222:                     load_context=lambda: checkpoint_loader_views(self.model),
+0223:                 )
+0224:             profile.log(
+0225:                 logging.getLogger(__name__),
+0226:                 role="receiver",
+0227:                 dense=update_info.dense,
+0228:                 device=str(device),
+0229:                 rank=self.parallel_config.rank,
+0230:                 dp_rank=self.parallel_config.data_parallel_index,
+0231:             )
+0232: 
+0233:     def _receive_patches(self, info, stream):
+0234:         device = self.model_update_group.device
+0235:         patches = []
+0236:         for name, dtype_name, shape, count in zip(
+0237:             info.names, info.dtype_names, info.shapes, info.num_updates_list, strict=True
+0238:         ):
+0239:             indices = None if info.dense else torch.empty(count, dtype=torch.int32, device=device)
+0240:             values = torch.empty(count, dtype=getattr(torch, dtype_name), device=device)

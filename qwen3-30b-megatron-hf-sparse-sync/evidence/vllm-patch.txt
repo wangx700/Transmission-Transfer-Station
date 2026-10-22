@@ -1,0 +1,319 @@
+Source: vllm-pr18915-backport/vllm/model_executor/model_loader/checkpoint_weight_patch.py
+HEAD: e6bfe03ad73a3330cb427885aa90d97a12e1c704
+Worktree status:  M vllm/model_executor/model_loader/checkpoint_weight_patch.py
+Source SHA256: C7C7CB622D58B2976C37FD33A941DFE06426DF3F1DAE2394683D0D67991F7B83
+
+0001: # SPDX-License-Identifier: Apache-2.0
+0002: # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+0003: """Apply dense or sparse weight updates in checkpoint coordinates.
+0004: 
+0005: The model's ``load_weights`` method still handles checkpoint-name mapping,
+0006: TP slicing, and packed parameters. Sparse patches use NaN to mark unchanged
+0007: checkpoint elements. The supported sparse-loader contract permits only final
+0008: same-shaped floating-point ``Tensor.copy_`` writes. Composed, multi-stage, and
+0009: custom-write loaders are unsupported.
+0010: """
+0011: 
+0012: from __future__ import annotations
+0013: 
+0014: import math
+0015: from collections.abc import Iterable
+0016: from contextlib import nullcontext
+0017: from typing import NamedTuple
+0018: 
+0019: import torch
+0020: 
+0021: _DEFAULT_PATCH_CHUNK_BYTES = 512 << 20
+0022: 
+0023: __all__ = [
+0024:     "CheckpointWeightPatch",
+0025:     "load_checkpoint_weight_patches",
+0026: ]
+0027: 
+0028: 
+0029: class CheckpointWeightPatch(NamedTuple):
+0030:     """Describe one dense or sparse checkpoint-coordinate update.
+0031: 
+0032:     Attributes:
+0033:         name: Checkpoint weight name passed to the model loader.
+0034:         shape: Full checkpoint tensor shape.
+0035:         dtype: Checkpoint tensor dtype.
+0036:         values: The flattened full tensor for a dense patch, or the values at
+0037:             ``indices`` for a sparse patch.
+0038:         indices: Flat indices into the full checkpoint tensor described by
+0039:             ``shape``. ``None`` makes ``values`` a dense replacement.
+0040:     """
+0041: 
+0042:     name: str
+0043:     shape: tuple[int, ...]
+0044:     dtype: torch.dtype
+0045:     values: torch.Tensor
+0046:     indices: torch.Tensor | None = None
+0047: 
+0048: 
+0049: def _load_nan_masked_weights(
+0050:     model: torch.nn.Module,
+0051:     weights: list[tuple[str, torch.Tensor]],
+0052: ) -> Iterable[str] | None:
+0053:     """Load NaN-masked checkpoint tensors while preserving runtime values at NaNs."""
+0054:     # Save the original copy_ so it can be restored after loading.
+0055:     original_copy = torch.Tensor.copy_
+0056: 
+0057:     # Enforce the sparse-loader contract and preserve destination values where
+0058:     # the corresponding source is NaN.
+0059:     def copy_non_nan_(
+0060:         destination: torch.Tensor,
+0061:         source: torch.Tensor,
+0062:         non_blocking: bool = False,
+0063:     ) -> torch.Tensor:
+0064:         if not (
+0065:             destination.is_floating_point()
+0066:             and source.is_floating_point()
+0067:             and destination.shape == source.shape
+0068:         ):
+0069:             raise NotImplementedError(
+0070:                 "Sparse checkpoint patches require a same-shaped "
+0071:                 "floating-point final copy"
+0072:             )
+0073:         source = source.to(dtype=destination.dtype, device=destination.device)
+0074:         return torch.where(
+0075:             torch.isnan(source),
+0076:             destination,
+0077:             source,
+0078:             out=destination,
+0079:         )
+0080: 
+0081:     torch.Tensor.copy_ = copy_non_nan_
+0082:     try:
+0083:         return model.load_weights(weights)
+0084:     finally:
+0085:         torch.Tensor.copy_ = original_copy
+0086: 
+0087: 
+0088: def _validate_patch_structure(patch: CheckpointWeightPatch) -> int:
+0089:     if not patch.name:
+0090:         raise ValueError("Checkpoint weight name must be non-empty")
+0091:     if not isinstance(patch.dtype, torch.dtype):
+0092:         raise TypeError(f"{patch.name}: dtype must be a torch.dtype")
+0093:     if any(dim < 0 for dim in patch.shape):
+0094:         raise ValueError(f"{patch.name}: shape dimensions must be non-negative")
+0095:     if patch.values.ndim != 1:
+0096:         raise ValueError(f"{patch.name}: patch values must be a 1D tensor")
+0097: 
+0098:     numel = math.prod(patch.shape)
+0099:     if patch.indices is None:
+0100:         if patch.values.numel() != numel:
+0101:             raise ValueError(
+0102:                 f"{patch.name}: dense patch has {patch.values.numel()} values "
+0103:                 f"for a {numel}-element tensor"
+0104:             )
+0105:         return numel
+0106: 
+0107:     if not patch.dtype.is_floating_point:
+0108:         raise TypeError(
+0109:             f"{patch.name}: sparse checkpoint patches require a floating dtype "
+0110:             "because NaN is the unchanged-value sentinel"
+0111:         )
+0112:     if patch.indices.ndim != 1:
+0113:         raise ValueError(f"{patch.name}: sparse patch indices must be a 1D tensor")
+0114:     if patch.indices.dtype not in (torch.int32, torch.int64):
+0115:         raise TypeError(f"{patch.name}: sparse patch indices must be int32 or int64")
+0116:     if patch.indices.numel() != patch.values.numel():
+0117:         raise ValueError(
+0118:             f"{patch.name}: sparse indices and values must have matching lengths"
+0119:         )
+0120: 
+0121:     return numel
+0122: 
+0123: 
+0124: def _load_weight_chunk(
+0125:     model: torch.nn.Module,
+0126:     weights: list[tuple[str, torch.Tensor]],
+0127:     *,
+0128:     sparse: bool,
+0129: ) -> set[str]:
+0130:     if not weights:
+0131:         return set()
+0132:     if sparse:
+0133:         loaded_names = _load_nan_masked_weights(model, weights)
+0134:     else:
+0135:         loaded_names = model.load_weights(weights)
+0136:     return set() if loaded_names is None else set(loaded_names)
+0137: 
+0138: 
+0139: @torch.no_grad()
+0140: def load_checkpoint_weight_patches(
+0141:     model: torch.nn.Module,
+0142:     patches: Iterable[CheckpointWeightPatch],
+0143:     *,
+0144:     max_chunk_bytes: int = _DEFAULT_PATCH_CHUNK_BYTES,
+0145:     validate_unique_indices: bool = True,
+0146:     phase_observer=None,
+0147:     sparse_apply=None,
+0148:     load_context=None,
+0149: ) -> set[str]:
+0150:     """Load ordered patches through the model's checkpoint loader.
+0151: 
+0152:     A call may contain either dense or sparse patches, but not both. A repeated
+0153:     name starts a new loader call, so patches for that weight are applied in input
+0154:     order. A later patch may update positions changed by an earlier patch. Each
+0155:     sparse patch creates a full checkpoint-shaped tensor whose NaNs mark unchanged
+0156:     elements. Each locally applied sparse patch must use one final same-shaped
+0157:     floating-point ``Tensor.copy_``. Intermediate or unrelated ``copy_`` calls,
+0158:     composed loaders, and custom write paths are unsupported. ``max_chunk_bytes``
+0159:     is a batching target; one tensor may exceed it.
+0160: 
+0161:     Online checkpoint-format dense updates require the caller to manage vLLM's
+0162:     layerwise reload lifecycle. Sparse online updates modify initialized model
+0163:     tensors in place and must not use that lifecycle. Patch shapes, dtypes, value
+0164:     lengths, and sparse indices are validated before loading begins.
+0165: 
+0166:     This function does not roll back a partial update. If a loader fails after a
+0167:     write, some destinations may already be changed. Do not serve from the affected
+0168:     worker until a known baseline has been restored or the worker has been
+0169:     restarted.
+0170: 
+0171:     Args:
+0172:         model: Model whose native ``load_weights`` method applies the patches.
+0173:         patches: Dense replacements or sparse updates in checkpoint coordinates.
+0174:         max_chunk_bytes: Target checkpoint tensor bytes per
+0175:             ``model.load_weights`` call. A single tensor may exceed this target.
+0176:         validate_unique_indices: Whether to reject duplicate sparse indices within
+0177:             each patch. Repeated patches may update the same positions. Disable
+0178:             only for a trusted producer that already guarantees unique positions
+0179:             within each patch.
+0180:         sparse_apply: Optional extension called after validation for sparse
+0181:             updates. Returns (remaining patches in original order, handled weight
+0182:             names). It must preserve ordered replacement semantics and may mutate
+0183:             model weights. Failure is nontransactional, as with native loading.
+0184:         load_context: Optional context-manager factory entered only around native
+0185:             model loading, after the sparse extension. Useful for loader views.
+0186:         phase_observer: Optional context-manager factory receiving a phase name
+0187:             for diagnostic timing. No device synchronization is added by default.
+0188: 
+0189:     Returns:
+0190:         Union of the weight names reported by all ``model.load_weights`` calls.
+0191:     """
+0192: 
+0193:     if max_chunk_bytes <= 0:
+0194:         raise ValueError("max_chunk_bytes must be positive")
+0195: 
+0196:     observe = phase_observer or (lambda _phase: nullcontext())
+0197:     patch_list = list(patches)
+0198:     patch_numels = [_validate_patch_structure(patch) for patch in patch_list]
+0199:     # All patches in one call must use the same dense or sparse representation.
+0200:     sparse_flags = {patch.indices is not None for patch in patch_list}
+0201:     if len(sparse_flags) > 1:
+0202:         raise ValueError("Dense and sparse checkpoint patches cannot be mixed")
+0203:     sparse = sparse_flags == {True}
+0204: 
+0205:     with observe("receiver_validate"):
+0206:         # Keep validation results on their devices and read one combined result per
+0207:         # device, instead of synchronizing the CPU once for every patch.
+0208:         checks_by_device: dict[torch.device, list[torch.Tensor]] = {}
+0209:         if sparse:
+0210:             for patch, numel in zip(patch_list, patch_numels, strict=True):
+0211:                 assert patch.indices is not None
+0212: 
+0213:                 # NaN is reserved to mean "leave this checkpoint position unchanged,"
+0214:                 # so it cannot also be supplied as a new sparse value.
+0215:                 patch_checks = [torch.isnan(patch.values).any()]
+0216:                 indices = patch.indices.to(device=patch.values.device)
+0217:                 if indices.numel():
+0218:                     # Sparse indices address the flattened full checkpoint tensor.
+0219:                     patch_checks.append(
+0220:                         torch.logical_or(indices < 0, indices >= numel).any()
+0221:                     )
+0222:                     if validate_unique_indices:
+0223:                         # Equal neighboring indices after sorting indicate duplicates.
+0224:                         sorted_indices = torch.sort(indices).values
+0225:                         patch_checks.append(
+0226:                             (sorted_indices[1:] == sorted_indices[:-1]).any()
+0227:                         )
+0228: 
+0229:                 checks_by_device.setdefault(patch.values.device, []).extend(
+0230:                     patch_checks
+0231:                 )
+0232: 
+0233:             for device_checks in checks_by_device.values():
+0234:                 if torch.stack(device_checks).any().item():
+0235:                     invalid_reasons = (
+0236:                         "NaN values, out-of-range indices, or duplicate indices"
+0237:                         if validate_unique_indices
+0238:                         else "NaN values or out-of-range indices"
+0239:                     )
+0240:                     raise ValueError(
+0241:                         f"Sparse checkpoint patches contain {invalid_reasons}"
+0242:                     )
+0243: 
+0244:     loaded_names: set[str] = set()
+0245:     if sparse and sparse_apply is not None:
+0246:         # The extension sees fully validated patches before any loader views or
+0247:         # full-shape staging. Unhandled patches retain their original order.
+0248:         remaining, handled_names = sparse_apply(patch_list)
+0249:         remaining = list(remaining)
+0250:         cursor = iter(patch_list)
+0251:         if any(
+0252:             not any(candidate is patch for candidate in cursor) for patch in remaining
+0253:         ):
+0254:             raise ValueError("sparse_apply must return an ordered subset of its input")
+0255:         loaded_names.update(handled_names)
+0256:         patch_list = remaining
+0257:         patch_numels = [math.prod(patch.shape) for patch in patch_list]
+0258: 
+0259:     def load_chunk(weights):
+0260:         if not weights:
+0261:             return set()
+0262:         with load_context() if load_context is not None else nullcontext():
+0263:             return _load_weight_chunk(model, weights, sparse=sparse)
+0264: 
+0265:     # Collect checkpoint tensors for one model.load_weights() call.
+0266:     weight_chunk: list[tuple[str, torch.Tensor]] = []
+0267:     chunk_names: set[str] = set()
+0268:     chunk_bytes = 0
+0269: 
+0270:     for patch, numel in zip(patch_list, patch_numels, strict=True):
+0271:         # Count the full checkpoint tensor, including sparse NaN staging.
+0272:         checkpoint_tensor_bytes = (
+0273:             numel * torch.empty((), dtype=patch.dtype).element_size()
+0274:         )
+0275:         # Flush before exceeding the batching target. Repeated names also start a
+0276:         # new loader call so their patches are applied in input order.
+0277:         if weight_chunk and (
+0278:             chunk_bytes + checkpoint_tensor_bytes > max_chunk_bytes
+0279:             or patch.name in chunk_names
+0280:         ):
+0281:             with observe("receiver_load"):
+0282:                 loaded_names.update(load_chunk(weight_chunk))
+0283:             weight_chunk = []
+0284:             chunk_names = set()
+0285:             chunk_bytes = 0
+0286: 
+0287:         with observe("receiver_staging"):
+0288:             if patch.indices is None:
+0289:                 checkpoint_tensor = patch.values.to(dtype=patch.dtype).view(patch.shape)
+0290:             else:
+0291:                 # NaNs mark unchanged checkpoint positions; index_copy_ fills only
+0292:                 # the positions supplied by this sparse patch.
+0293:                 flat = torch.full(
+0294:                     (numel,),
+0295:                     float("nan"),
+0296:                     dtype=patch.dtype,
+0297:                     device=patch.values.device,
+0298:                 )
+0299:                 if patch.values.numel():
+0300:                     flat.index_copy_(
+0301:                         0,
+0302:                         patch.indices.to(device=flat.device, dtype=torch.long),
+0303:                         patch.values.to(dtype=patch.dtype, device=flat.device),
+0304:                     )
+0305:                 checkpoint_tensor = flat.view(patch.shape)
+0306: 
+0307:         weight_chunk.append((patch.name, checkpoint_tensor))
+0308:         chunk_names.add(patch.name)
+0309:         chunk_bytes += checkpoint_tensor_bytes
+0310: 
+0311:     # Load the final partial chunk; the helper also accepts an empty chunk.
+0312:     with observe("receiver_load"):
+0313:         loaded_names.update(load_chunk(weight_chunk))
+0314:     return loaded_names

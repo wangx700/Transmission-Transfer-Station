@@ -1,0 +1,76 @@
+Source: ascend-pr18915-backport/vllm_ascend/ops/fused_moe/routed_experts.py
+HEAD: fd815467c221ee600137f6bdd53fe354d5e7c999
+Worktree status:  M vllm_ascend/ops/fused_moe/routed_experts.py
+Source SHA256: AF3D98A20041635AEEAEDD0117D59BDD61CE82E2325EF942CAEE16CBD34B8547
+
+0070:     @property
+0071:     def is_monolithic(self) -> bool:
+0072:         return False
+0073: 
+0074:     def maybe_make_prepare_finalize(self, routing_tables=None):
+0075:         # Ascend uses its own MoE communication and forward_impl path.
+0076:         # Do not let upstream modular-kernel initialization replace it.
+0077:         return None
+0078: 
+0079:     @staticmethod
+0080:     def get_eplb_weight_views(layer) -> list[torch.Tensor]:
+0081:         weights = [layer.w13_weight, layer.w2_weight]
+0082:         if layer.w13_bias is not None:
+0083:             weights.append(layer.w13_bias)
+0084:         if layer.w2_bias is not None:
+0085:             weights.append(layer.w2_bias)
+0086:         return weights
+0087: 
+0088:     def supports_fused_activation(self, activation) -> bool:
+0089:         return False
+0090: 
+0091:     @staticmethod
+0092:     def validate_checkpoint_weight_loader_view(layer):
+0093:         parameters = [getattr(layer, name, None) for name in ("w13_weight", "w2_weight")]
+0094:         if any(parameter is None for parameter in parameters):
+0095:             raise NotImplementedError("Checkpoint sparse updates require unsplit ND expert weights")
+0096:         if any(torch_npu.get_npu_format(parameter) not in (0, 2) for parameter in parameters):
+0097:             raise NotImplementedError("Checkpoint sparse updates require ND expert weights")
+0098: 
+0099:     @contextmanager
+0100:     def checkpoint_weight_loader_view(self, layer):
+0101:         """Temporarily undo the inference transpose without replacing storage.
+0102: 
+0103:         The upstream expert loader expects [expert, output, input], whereas
+0104:         Ascend GMM consumes [expert, input, output]. Restoring the original
+0105:         views in finally also preserves graph addresses and parameter loaders.
+0106:         Split expert lists and NZ tensors need a different update mechanism.
+0107:         """
+0108:         self.validate_checkpoint_weight_loader_view(layer)
+0109:         parameters = [layer.w13_weight, layer.w2_weight]
+0110:         originals = [parameter.data for parameter in parameters]
+0111:         try:
+0112:             for parameter, original in zip(parameters, originals):
+0113:                 parameter.data = original.transpose(1, 2)
+0114:             yield
+0115:         finally:
+0116:             for parameter, original in zip(parameters, originals):
+0117:                 parameter.data = original
+0118: 
+0119:     def process_weights_after_loading(self, layer):
+0120:         super(UnquantizedFusedMoEMethod, self).process_weights_after_loading(layer)
+0121: 
+0122:         # Keep expert-aware loaders attached for later online weight updates.
+0123:         w13_data = self._maybe_pad_weight(layer.w13_weight.data).transpose(1, 2).contiguous()
+0124:         replace_parameter(layer, "w13_weight", w13_data)
+0125: 
+0126:         w2_data = self._maybe_pad_weight(layer.w2_weight.data).transpose(1, 2).contiguous()
+0127:         replace_parameter(layer, "w2_weight", w2_data)
+0128: 
+0129:         # TODO: Current dispatch_ffn_combine/mega_moe fusion operator ONLY supports NZ format.
+0130:         # Therefore, we must cast weights to NZ when fusion is enabled.
+0131:         # Once the underlying dispatch_ffn_combine/mega_moe operator is updated to support
+0132:         # ND format (or other formats), remove this specific 'if' check and the forced
+0133:         # npu_format_cast. At that point, the operator should be able to handle weights
+0134:         # in their native format without explicit casting here.
+0135:         enable_fused_mc2 = get_ascend_config().enable_fused_mc2
+0136:         if enable_fused_mc2:
+0137:             use_megamoe = use_cann_megamoe(get_current_vllm_config())
+0138:             if not use_megamoe:
+0139:                 layer.w13_weight.data = torch_npu.npu_format_cast(layer.w13_weight.data, ACL_FORMAT_FRACTAL_NZ)
+0140:                 layer.w2_weight.data = torch_npu.npu_format_cast(layer.w2_weight.data, ACL_FORMAT_FRACTAL_NZ)

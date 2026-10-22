@@ -1,0 +1,83 @@
+Source: verl-sglang/verl/verl/workers/engine/utils.py
+HEAD: 5026915b60fb0a99a0d6e929b4b5af9a4ceae1f8
+Worktree status:  M verl/workers/engine/utils.py
+Source SHA256: 7CA782878BBC1A1D923C73ABE3567B23121D379CC35DAFF633009F75FD38580F
+
+0225: # its snapshot -- happens here, on the backend side of the contract. The engine
+0226: # keeps only collectives, bucketing and the wire. This module holds only the
+0227: # DTensor-generic pieces both backends share; EP/converter machinery lives in
+0228: # the veomni backend's own utils.
+0229: 
+0230: 
+0231: def _prodshape(shape) -> int:
+0232:     n = 1
+0233:     for x in shape:
+0234:         n *= int(x)
+0235:     return n
+0236: 
+0237: 
+0238: def _hf_entry_identity(name, spec, place, lidx, lval):
+0239:     """Identity profile: the param IS its own single slot (weight name == HF name)
+0240:     -- translate the shard-local delta to within-param coordinates. int32
+0241:     positions: the wire is int32 anyway and the engine asserts the range."""
+0242:     from .spec import translate_flat_indices
+0243: 
+0244:     gidx = (translate_flat_indices(lidx, place) if lidx.numel() else lidx).to(torch.int32)
+0245:     counts = torch.zeros(1, dtype=torch.int64)
+0246:     counts[0] = int(gidx.numel())
+0247:     return [(name, tuple(spec.full_shape))], str(lval.dtype).replace("torch.", ""), counts, gidx, lval
+0248: 
+0249: 
+0250: def hf_delta_export(gen, snaps: dict, entry_fn):
+0251:     """STEADY export: wrap a raw ``(name, local_shard, spec)`` exporter into final
+0252:     HF-coordinate delta entries ``(slots, dtype_str, counts, hf_idx, hf_val,
+0253:     gather_group)`` -- diff against the pinned snapshot, refresh it, then hand the
+0254:     shard-local delta to ``entry_fn(name, spec, place, lidx, lval)``, the engine's
+0255:     per-param entry builder (FSDP: identity only; veomni adds the EP converter).
+0256:     The delta engine consumes these entries verbatim (batch -> gather -> wire); no
+0257:     spec, no placement and no conversion cross the boundary. Requires a prior seed
+0258:     pass."""
+0259:     from verl.checkpoint_engine.delta_sync.sparse_gather import shard_delta_indices
+0260: 
+0261:     from .spec import derive_dtensor_placement
+0262: 
+0263:     for name, local, spec in gen:
+0264:         local = local.detach().contiguous().view(-1)
+0265:         snap = snaps.get(name)
+0266:         assert snap is not None and snap.numel() == local.numel(), (
+0267:             f"{name}: no seed snapshot for this shard; run the seed export first"
+0268:         )
+0269:         if spec.place is not None:
+0270:             # explicit exporter override: the backend declared the whole triple
+0271:             # (hybrid geometries are not derivable from DTensor facts alone).
+0272:             place, contributes, pg = spec.place, spec.contributes, spec.gather_group
+0273:         else:
+0274:             place, contributes, pg = derive_dtensor_placement(spec)
+0275:         if contributes:
+0276:             base = snap.to(local.device, non_blocking=True) # ① H2D：整个 shard 快照 CPU→GPU（异步拷贝）
+0277:             lidx, lval = shard_delta_indices(local, base, 0) # ② 全部是 GPU kernel
+0278:         else:
+0279:             # replicated param owned by another rank; empty delta keeps lockstep.
+0280:             lidx = torch.empty(0, dtype=torch.int64, device=local.device)
+0281:             lval = torch.empty(0, dtype=local.dtype, device=local.device)
+0282:         snap.copy_(local, non_blocking=True) # ③ D2H：只把当前 shard 写回快照（下一轮的"旧版"）
+0283:         yield (*entry_fn(name, spec, place, lidx, lval), pg)
+0284: 
+0285: 
+0286: def prime_delta_snapshots(gen, snaps: dict, pin: bool) -> None:
+0287:     """Snapshot each rank's current shards to CPU as the steady diff base. Run
+0288:     right after the seed's full-weight sync: weights do not move during the
+0289:     sync, so the snapshots equal exactly what the rollout side received.
+0290: 
+0291:     ``pin`` selects pinned vs pageable host memory and is the ENGINE's call
+0292:     (``BaseEngine.delta_pin_snapshots``): pinning a whole shard set
+0293:     (cudaHostAlloc) competes with everything else that pins on the node and its
+0294:     failure surfaces as a CUDA out-of-memory; pageable costs a slower H2D on
+0295:     the diff read-back but cannot OOM the device."""
+0296:     for name, local, _spec in gen:
+0297:         local = local.detach().contiguous().view(-1)
+0298:         snap = snaps.get(name)
+0299:         if snap is None or snap.numel() != local.numel():
+0300:             snap = torch.empty_like(local, device="cpu", pin_memory=pin)
+0301:             snaps[name] = snap
+0302:         snap.copy_(local, non_blocking=True)

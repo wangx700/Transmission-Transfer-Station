@@ -1,0 +1,116 @@
+Source: vllm-pr18915-backport/vllm/model_executor/layers/fused_moe/config.py
+HEAD: e6bfe03ad73a3330cb427885aa90d97a12e1c704
+Worktree status: clean
+Source SHA256: 5520E19A6E329E75D69E24744024460649A9EEE4471F0A54C02A74DBF3B48288
+
+1150: 
+1151:         Examples:
+1152:             When there is no parallelism requested,
+1153:             i.e. `tp_size_` = `pcp_size_` = `dp_size_` = 1, we simply return the sizes
+1154:             unaltered and the ranks set to 0.
+1155: 
+1156:             Expert Parallelism is considered only when either `dp_size_`, `pcp_size_` or
+1157:             `tp_size_` is non trivial.
+1158: 
+1159:             Note that PCP serves the same function as DP here.
+1160: 
+1161:             When TP = 2, DP(PCP) = 1 and EP = False, the configuration on different
+1162:             devices:
+1163: 
+1164:             - device 0 : TP = {2, 0} DP = {1, 0} EP = {1, 0} //
+1165:                 legend : {size, rank}
+1166:             - device 1 : TP = {2, 1} DP = {1, 0} EP = {1, 0}
+1167:             - Comment : Tensors are sharded across 2 devices.
+1168: 
+1169:             When TP = 1, DP(PCP) = 2 and EP = False, the configuration on different
+1170:                 devices:
+1171: 
+1172:             - device 0 : TP = {2, 0} DP = {2, 0} EP = {1, 0}
+1173:             - device 1 : TP = {2, 1} DP = {2, 1} EP = {1, 0}
+1174:             - Comment: There are 2 engine instances and the tensors are sharded
+1175:                 across 2 decvices.
+1176: 
+1177:             When TP = 2, DP(PCP) = 2 and EP = False, the configuration on different
+1178:                 devices:
+1179: 
+1180:             - device 0: TP = {4, 0} DP = {2, 0} EP = {1, 0}
+1181:             - device 1: TP = {4, 1} DP = {2, 0} EP = {1, 0}
+1182:             - device 2: TP = {4, 2} DP = {2, 1} EP = {1, 0}
+1183:             - device 3: TP = {4, 3} DP = {2, 1} EP = {1, 0}
+1184:             - Comment: There are 2 engine instances and the tensors are sharded
+1185:                 across 4 devices.
+1186: 
+1187:             When, TP = 2, DP(PCP) = 1 and EP = True, the configuration on different
+1188:                 devices:
+1189: 
+1190:             - device 0: TP = {1, 0} DP = {1, 0} EP = {2, 0}
+1191:             - device 1: TP = {1, 0} DP = {1, 0} EP = {2, 1}
+1192:             - Comment: The experts are split between the 2 devices.
+1193: 
+1194:             When, TP = 1, DP(PCP) = 2 and EP = True, the configuration on different
+1195:                 devices:
+1196: 
+1197:             - device 0: TP = {1, 0} DP = {2, 0} EP = {2, 0}
+1198:             - device 1: TP = {1, 0} DP = {2, 1} EP = {2, 1}
+1199:             - Comment: There are 2 engine instances and the experts are split
+1200:                 between the 2 devices.
+1201: 
+1202:             When TP = 2, DP(PCP) = 2 and EP = True, the configuration on different
+1203:                 devices:
+1204: 
+1205:             - device 0: TP = {1, 0} DP = {2, 0} EP = {4, 0}
+1206:             - device 1: TP = {1, 0} DP = {2, 0} EP = {4, 1}
+1207:             - device 2: TP = {1, 0} DP = {2, 1} EP = {4, 2}
+1208:             - device 3: TP = {1, 0} DP = {2, 1} EP = {4, 3}
+1209:             - Comment: There are 2 engine instances and the experts are split
+1210:                 between the 4 devices.
+1211:         """
+1212:         use_ep = (
+1213:             dp_size_ * pcp_size_ * tp_size_ > 1
+1214:             and vllm_parallel_config.enable_expert_parallel
+1215:         )
+1216: 
+1217:         dp_size = dp_size_
+1218:         dp_rank = get_dp_group().rank_in_group if dp_size > 1 else 0
+1219:         pcp_size = pcp_size_
+1220:         pcp_rank = get_pcp_group().rank_in_group if pcp_size > 1 else 0
+1221:         tp_size, tp_rank = FusedMoEParallelConfig.flatten_tp_across_dp_and_pcp(
+1222:             tp_size_, dp_size_, dp_rank, pcp_size_, pcp_rank
+1223:         )
+1224: 
+1225:         if not use_ep:
+1226:             return FusedMoEParallelConfig(
+1227:                 tp_size=tp_size,
+1228:                 tp_rank=tp_rank,
+1229:                 pcp_size=pcp_size,
+1230:                 pcp_rank=pcp_rank,
+1231:                 dp_size=dp_size,
+1232:                 dp_rank=dp_rank,
+1233:                 ep_size=1,
+1234:                 ep_rank=0,
+1235:                 sp_size=sp_size_,
+1236:                 use_ep=False,
+1237:                 all2all_backend=vllm_parallel_config.all2all_backend,
+1238:                 enable_eplb=vllm_parallel_config.enable_eplb,
+1239:             )
+1240:         # DP + EP / TP + EP / DP + TP + EP
+1241:         assert use_ep
+1242:         # In EP, each device owns a set of experts fully. There is no tensor
+1243:         # parallel update tp_size, tp_rank, ep_size and ep_rank to reflect that.
+1244:         ep_size = tp_size
+1245:         ep_rank = tp_rank
+1246:         return FusedMoEParallelConfig(
+1247:             tp_size=1,
+1248:             tp_rank=0,
+1249:             pcp_size=pcp_size,
+1250:             pcp_rank=pcp_rank,
+1251:             dp_size=dp_size,
+1252:             dp_rank=dp_rank,
+1253:             ep_size=ep_size,
+1254:             ep_rank=ep_rank,
+1255:             sp_size=sp_size_,
+1256:             use_ep=True,
+1257:             all2all_backend=vllm_parallel_config.all2all_backend,
+1258:             enable_eplb=vllm_parallel_config.enable_eplb,
+1259:         )
+1260: 

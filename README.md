@@ -24,3 +24,7 @@
 ## Sparse HCCL 权重更新
 
 - [PR #18915 材料目录](vllm-ascend-pr18915-sparse-hccl/README.md)：整体 UML 时序图、核心代码与接口流程、80 个 pytest 用例说明，以及真实 HCCL 验证记录。
+
+## Qwen3-30B-A3B 稀疏权重同步
+
+- [Megatron → HF → 推理侧权重分片与 slot 六元组](qwen3-30b-megatron-hf-sparse-sync/README.md)：TP2/PP2/EP2 下的 QKV、MoE name/shape、训练与推理并行差异、NaN probe 操作示例、可运行教学脚本及代码证据。

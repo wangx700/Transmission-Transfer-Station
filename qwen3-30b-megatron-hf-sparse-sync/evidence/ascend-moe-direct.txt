@@ -1,0 +1,195 @@
+Source: ascend-pr18915-backport/vllm_ascend/distributed/weight_transfer/sparse_moe_direct.py
+HEAD: fd815467c221ee600137f6bdd53fe354d5e7c999
+Worktree status: ?? vllm_ascend/distributed/weight_transfer/sparse_moe_direct.py
+Source SHA256: 44F630FB1EB45910EA12869D843A2568EDC76C06568CCDFFC2E0EABAEF1E1EFD
+
+0001: # SPDX-License-Identifier: Apache-2.0
+0002: # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+0003: """Guarded sparse writes into Ascend Qwen3-MoE inference-layout weights."""
+0004: 
+0005: import logging
+0006: import re
+0007: from collections import Counter
+0008: 
+0009: import torch
+0010: 
+0011: logger = logging.getLogger(__name__)
+0012: 
+0013: 
+0014: @torch.no_grad()
+0015: def apply_direct_moe_patches(model, patches):
+0016:     """Apply supported patches; preserve original objects/order for fallback.
+0017: 
+0018:     The caller must validate every patch before invoking this function and must
+0019:     not enter temporary checkpoint-loader views until this function returns.
+0020:     """
+0021:     pairs = [(patch, list(patch.shape)) for patch in patches]
+0022:     remaining = _apply_direct_moe_patches(model, pairs)
+0023:     remaining_ids = {id(patch) for patch, _ in remaining}
+0024:     handled = {patch.name for patch in patches if id(patch) not in remaining_ids}
+0025:     return [patch for patch, _ in remaining], handled
+0026: 
+0027: 
+0028: def _apply_moe_group(param, entries, shape, tp_rank, tp_size, down, *, verify=False):
+0029:     """Compact once per runtime weight, preserving HF absolute-copy semantics.
+0030: 
+0031:     SGLang avoids per-expert dynamic boolean indexing in its masked loader.
+0032:     Here the same TP selection is performed for a whole runtime w13/w2 group.
+0033:     Explicit output_size prevents repeat_interleave from reading a device count.
+0034:     """
+0035:     lengths = [patch.indices.numel() for patch, _, _ in entries]
+0036:     total = sum(lengths)
+0037:     if not total:
+0038:         return
+0039:     device = entries[0][0].indices.device
+0040:     indices = torch.cat([patch.indices for patch, _, _ in entries]).long()
+0041:     values = torch.cat([patch.values for patch, _, _ in entries])
+0042:     width = shape[1 if down else 0] // tp_size
+0043:     descriptors = torch.tensor(
+0044:         [[local_expert, width if projection == "up_proj" else 0] for _, local_expert, projection in entries],
+0045:         dtype=torch.int64,
+0046:         device=device,
+0047:     )
+0048:     descriptors = torch.repeat_interleave(
+0049:         descriptors,
+0050:         torch.tensor(lengths, dtype=torch.int64, device=device),
+0051:         dim=0,
+0052:         output_size=total,
+0053:     )
+0054:     row, col = indices // shape[1], indices % shape[1]
+0055:     coordinate = col if down else row
+0056:     selected = (
+0057:         ((coordinate >= tp_rank * width) & (coordinate < (tp_rank + 1) * width) & ~torch.isnan(values))
+0058:         .nonzero()
+0059:         .view(-1)
+0060:     )
+0061:     if down:
+0062:         target = descriptors[:, 0] * width * shape[0] + (col - tp_rank * width) * shape[0] + row
+0063:     else:
+0064:         target = (
+0065:             descriptors[:, 0] * shape[1] * (2 * width) + col * (2 * width) + descriptors[:, 1] + row - tp_rank * width
+0066:         )
+0067:     local_indices = target.index_select(0, selected)
+0068:     local_values = values.index_select(0, selected)
+0069:     flat = param.data.view(-1)
+0070:     flat.index_copy_(0, local_indices, local_values)
+0071:     if verify:
+0072:         if not torch.equal(flat.index_select(0, local_indices), local_values):
+0073:             raise RuntimeError("Sparse MoE rank-local verification failed")
+0074: 
+0075: 
+0076: def _apply_direct_moe_patches(
+0077:     model,
+0078:     patches,
+0079:     *,
+0080:     verify=False,
+0081: ):
+0082:     # Exact guards keep unfamiliar models, quantization and layouts on the
+0083:     # native loader. Static EP is supported through its global-to-local map.
+0084:     if getattr(getattr(model, "config", None), "model_type", None) != "qwen3_moe":
+0085:         return patches
+0086:     # Preserve ordered overwrite semantics for split/repeated parameter names.
+0087:     names = [patch.name for patch, _ in patches]
+0088:     if len(names) != len(set(names)):
+0089:         logger.info("Sparse MoE apply: direct_patches=0 fallback_patches=%d reason=repeated_names", len(patches))
+0090:         return patches
+0091:     from vllm_ascend.ops.fused_moe.routed_experts import (
+0092:         AscendRoutedExperts,
+0093:         AscendUnquantizedFusedMoEMethod,
+0094:     )
+0095: 
+0096:     fallback, grouped = [], {}
+0097:     reasons = Counter()
+0098:     skipped_nonlocal = 0
+0099:     for patch, shape in patches:
+0100:         match = re.fullmatch(r"(.+\.experts)\.(\d+)\.(gate_proj|up_proj|down_proj)\.weight", patch.name)
+0101:         if match is None or len(shape) != 2:
+0102:             reasons["non_expert_or_shape"] += 1
+0103:             fallback.append((patch, shape))
+0104:             continue
+0105:         prefix, expert_text, projection = match.groups()
+0106:         try:
+0107:             runner = model.get_submodule(prefix)
+0108:         except AttributeError:
+0109:             reasons["missing_module"] += 1
+0110:             fallback.append((patch, shape))
+0111:             continue
+0112:         layer = getattr(runner, "routed_experts", runner)
+0113:         if type(layer) is not AscendRoutedExperts or type(layer.quant_method) is not AscendUnquantizedFusedMoEMethod:
+0114:             reasons["unsupported_method"] += 1
+0115:             fallback.append((patch, shape))
+0116:             continue
+0117:         config = layer.moe_config
+0118:         parallel = config.moe_parallel_config
+0119:         expert = int(expert_text)
+0120:         tp_size, tp_rank = parallel.tp_size, config.tp_rank
+0121:         param = getattr(layer, "w2_weight" if projection == "down_proj" else "w13_weight", None)
+0122:         shard_dim = 1 if projection == "down_proj" else 0
+0123:         expected = (
+0124:             (shape[1] // tp_size, shape[0]) if projection == "down_proj" else (shape[1], 2 * (shape[0] // tp_size))
+0125:         )
+0126:         expert_map = getattr(layer, "ascend_expert_map", None)
+0127:         eplb_enabled = getattr(config, "enable_eplb", False) or getattr(layer.quant_method, "dynamic_eplb", False)
+0128:         if (
+0129:             eplb_enabled
+0130:             or not config.is_act_and_mul
+0131:             or param is None
+0132:             or getattr(param, "is_transposed", False)
+0133:             or shape[shard_dim] % tp_size
+0134:             or param.ndim != 3
+0135:             or tuple(param.shape[1:]) != expected
+0136:             or param.dtype != torch.bfloat16
+0137:             or param.dtype != patch.values.dtype
+0138:             or not param.is_contiguous()
+0139:             or not _supports_logical_flat_index_copy(param)
+0140:         ):
+0141:             reasons["layout_or_mapping_guard"] += 1
+0142:             fallback.append((patch, shape))
+0143:             continue
+0144:         if parallel.ep_size == 1:
+0145:             local_expert = expert
+0146:         elif expert_map is not None and not eplb_enabled:
+0147:             cached_map = getattr(layer, "_sparse_expert_map_cpu", None)
+0148:             if cached_map is None:
+0149:                 cached_map = expert_map.detach().cpu()
+0150:                 layer._sparse_expert_map_cpu = cached_map
+0151:             if not 0 <= expert < cached_map.numel():
+0152:                 raise IndexError(f"Global expert {expert} outside expert map")
+0153:             local_expert = int(cached_map[expert])
+0154:             if local_expert < 0:
+0155:                 # The expert belongs to another EP rank.  Drop it before any
+0156:                 # full-shape temporary is allocated by the native loader.
+0157:                 skipped_nonlocal += 1
+0158:                 continue
+0159:         else:
+0160:             local_expert = -1
+0161:         if not 0 <= local_expert < param.shape[0]:
+0162:             reasons["layout_or_mapping_guard"] += 1
+0163:             fallback.append((patch, shape))
+0164:             continue
+0165:         group = grouped.setdefault(
+0166:             id(param),
+0167:             (param, [], tuple(shape), tp_rank, tp_size, projection == "down_proj"),
+0168:         )
+0169:         if group[2:] != (tuple(shape), tp_rank, tp_size, projection == "down_proj"):
+0170:             reasons["inconsistent_group_shape"] += 1
+0171:             fallback.append((patch, shape))
+0172:             continue
+0173:         group[1].append((patch, local_expert, projection))
+0174:     for param, entries, shape, tp_rank, tp_size, down in grouped.values():
+0175:         _apply_moe_group(param, entries, shape, tp_rank, tp_size, down, verify=verify)
+0176:     logger.info(
+0177:         "Sparse MoE apply: direct_patches=%d runtime_parameters=%d "
+0178:         "fallback_patches=%d skipped_nonlocal=%d fallback_reasons=%s",
+0179:         sum(len(group[1]) for group in grouped.values()),
+0180:         len(grouped),
+0181:         len(fallback),
+0182:         skipped_nonlocal,
+0183:         dict(reasons),
+0184:     )
+0185:     return fallback
+0186: 
+0187: 
+0188: def _supports_logical_flat_index_copy(tensor: torch.Tensor) -> bool:
+0189:     """Reject transformed Ascend layouts until physical mapping is defined."""
+0190:     if tensor.device.type != "npu":

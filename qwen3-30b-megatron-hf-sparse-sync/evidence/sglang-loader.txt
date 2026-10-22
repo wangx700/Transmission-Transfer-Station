@@ -1,0 +1,233 @@
+Source: verl-sglang/verl/verl/workers/rollout/sglang_rollout/delta_loader.py
+HEAD: 5026915b60fb0a99a0d6e929b4b5af9a4ceae1f8
+Worktree status:  M verl/workers/rollout/sglang_rollout/delta_loader.py
+Source SHA256: 5EACE9E158FED7BD49DCA79429FEA2BE04F38BBAD60A7D33D2F287ACC97C931D
+
+0001: # Copyright 2025 Bytedance Ltd. and/or its affiliates
+0002: #
+0003: # Licensed under the Apache License, Version 2.0 (the "License");
+0004: # you may not use this file except in compliance with the License.
+0005: # You may obtain a copy of the License at
+0006: #
+0007: #     http://www.apache.org/licenses/LICENSE-2.0
+0008: #
+0009: # Unless required by applicable law or agreed to in writing, software
+0010: # distributed under the License is distributed on an "AS IS" BASIS,
+0011: # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+0012: # See the License for the specific language governing permissions and
+0013: # limitations under the License.
+0014: """In-process sparse delta apply for SGLang, loaded via ``--custom-weight-loader``.
+0015: 
+0016: SGLang's ``update_weights_from_tensor`` supports pluggable loaders: when the
+0017: request's ``load_format`` names an import path registered in
+0018: ``--custom-weight-loader``, SGLang ``dynamic_import``s it **inside every TP
+0019: worker process** and calls ``loader(model, named_tensors)``. That is exactly
+0020: the hook a sparse delta needs: the delta payload is decoded and applied *in
+0021: place* onto SGLang's live weights (masked overwrite of only the changed
+0022: positions), so the receiver never stages a full-model mirror anywhere —
+0023: peak memory is one decode chunk, independent of model size — and no SGLang
+0024: fork or patch is required.
+0025: 
+0026: Wire contract (what the delta checkpoint engine sends per flush):
+0027: 
+0028: * ``__delta_spec__`` — uint8 tensor holding a JSON manifest
+0029:   ``{"encoding", "params": [DeltaParam-dict...], "checksum"}``.
+0030: * ``__positions__`` — uint8 blob of packed positions (per-param slices are
+0031:   byte offsets ``pos_start:pos_end``; ``indices`` packs little-endian int32
+0032:   absolute positions).
+0033: * ``__values__``  — the changed values in the flush's (uniform) dtype;
+0034:   per-param slices are element offsets ``val_start:val_end``.
+0035: 
+0036: Register at server launch (verl config)::
+0037: 
+0038:     +actor_rollout_ref.rollout.engine_kwargs.sglang.custom_weight_loader='["verl.workers.rollout.sglang_rollout.delta_loader.apply_delta"]'
+0039: """
+0040: 
+0041: from __future__ import annotations
+0042: 
+0043: import json
+0044: import logging
+0045: import math
+0046: from collections.abc import Iterable, Iterator
+0047: from contextlib import contextmanager
+0048: 
+0049: import torch
+0050: 
+0051: logger = logging.getLogger(__name__)
+0052: 
+0053: # Cap on the densified tensors handed to one model.load_weights call, matching
+0054: # SGLang's own delta-apply chunking default.
+0055: CHUNK_BYTES = 512 << 20
+0056: 
+0057: # Import path callers pass as both --custom-weight-loader and load_format.
+0058: LOADER_FQN = "verl.workers.rollout.sglang_rollout.delta_loader.apply_delta"
+0059: 
+0060: 
+0061: def apply_delta(model: torch.nn.Module, named_tensors: Iterable[tuple[str, torch.Tensor]]) -> None:
+0062:     """Decode one sparse delta flush and masked-apply it onto ``model`` in place."""
+0063:     from verl.checkpoint_engine.delta_sync.encode import checksum as _checksum
+0064: 
+0065:     tensors = dict(named_tensors)
+0066:     spec = json.loads(bytes(tensors["__delta_spec__"].cpu().numpy().tobytes()).decode())
+0067:     values = tensors["__values__"]
+0068:     positions = tensors.get("__positions__")
+0069:     if positions is None:  # values-only flush (the seed) carries no positions
+0070:         positions = torch.empty(0, dtype=torch.uint8, device=values.device)
+0071: 
+0072:     got = _checksum(positions, values)
+0073:     if got != int(spec["checksum"]):
+0074:         raise RuntimeError(
+0075:             f"delta checksum mismatch in sglang loader: got {got}, expected {spec['checksum']}; "
+0076:             "indicates corruption between sender encode and receiver apply"
+0077:         )
+0078: 
+0079:     if spec["encoding"] == "dense":
+0080:         if spec.get("verify"):
+0081:             _verify_dense(model, spec["params"], values, bool(spec.get("is_last")))
+0082:             return
+0083:         _apply_dense(model, spec["params"], values)
+0084:         return
+0085: 
+0086:     encoding = spec["encoding"]
+0087:     with _masked_copy():
+0088:         chunk: list[tuple[str, torch.Tensor]] = []
+0089:         chunk_bytes = 0
+0090:         for p in spec["params"]:
+0091:             t = _decode_one(encoding, positions, values, p)
+0092:             nbytes = t.numel() * t.element_size()
+0093:             if chunk and chunk_bytes + nbytes > CHUNK_BYTES:
+0094:                 model.load_weights(chunk)
+0095:                 chunk, chunk_bytes = [], 0
+0096:             chunk.append((p["name"], t))
+0097:             chunk_bytes += nbytes
+0098:         if chunk:
+0099:             model.load_weights(chunk)
+0100: 
+0101: 
+0102: def _apply_dense(model: torch.nn.Module, params: list[dict], values: torch.Tensor) -> None:
+0103:     """Apply a dense (full-coverage) flush: plain chunked load, no masking needed."""
+0104:     chunk: list[tuple[str, torch.Tensor]] = []
+0105:     chunk_bytes = 0
+0106:     for p in params:
+0107:         dtype = getattr(torch, p["dtype"])
+0108:         t = values[p["val_start"] : p["val_end"]].to(dtype).view(p["shape"])
+0109:         nbytes = t.numel() * t.element_size()
+0110:         if chunk and chunk_bytes + nbytes > CHUNK_BYTES:
+0111:             model.load_weights(chunk)
+0112:             chunk, chunk_bytes = [], 0
+0113:         chunk.append((p["name"], t))
+0114:         chunk_bytes += nbytes
+0115:     if chunk:
+0116:         model.load_weights(chunk)
+0117: 
+0118: 
+0119: _VERIFY_STATS: dict = {"params": 0, "pieces": []}
+0120: 
+0121: 
+0122: def _verify_dense(model: torch.nn.Module, params: list[dict], values: torch.Tensor, is_last: bool) -> None:
+0123:     """State-equivalence sweep, phrased as an IDEMPOTENCE check: replaying the
+0124:     trainer's FULL current weights onto an in-sync server must be a no-op. For
+0125:     each parameter we snapshot every ``copy_`` destination (the exact internal
+0126:     slices sglang's own ``load_weights`` name-mapping resolves) BEFORE the
+0127:     load, run the real load path -- including multi-stage loaders that first
+0128:     write raw values and then transform in place (e.g. mamba's
+0129:     ``A = -exp(A_log)`` composed loader) -- and bit-compare the post-load state
+0130:     against the snapshot. Any changed element means the server's
+0131:     delta-accumulated state disagreed with the trainer's; that fails loud.
+0132:     Comparing per copy_ call instead would false-positive on every
+0133:     transform-loaded param (raw-vs-transformed at each stage)."""
+0134:     orig_copy = torch.Tensor.copy_
+0135: 
+0136:     by_param = _VERIFY_STATS.setdefault("by_param", {})
+0137:     for p in params:
+0138:         touched: dict = {}
+0139: 
+0140:         def snap_then_copy_(self: torch.Tensor, src: torch.Tensor, *args, _touched=touched, **kwargs) -> torch.Tensor:
+0141:             key = (self.data_ptr(), self.numel(), self.dtype)
+0142:             if key not in _touched:
+0143:                 _touched[key] = (self, self.detach().clone())
+0144:             return orig_copy(self, src, *args, **kwargs)
+0145: 
+0146:         torch.Tensor.copy_ = snap_then_copy_
+0147:         try:
+0148:             _apply_dense(model, [p], values)
+0149:         finally:
+0150:             torch.Tensor.copy_ = orig_copy
+0151:         bad = 0
+0152:         for dst, pre in touched.values():
+0153:             if dst.is_floating_point() and dst.element_size() == 2:
+0154:                 bad += int((dst.view(torch.int16) != pre.view(torch.int16)).sum())
+0155:             else:
+0156:                 bad += int((dst != pre).sum())
+0157:         if bad:
+0158:             by_param[p["name"]] = by_param.get(p["name"], 0) + bad
+0159:         _VERIFY_STATS["pieces"].append(bad)
+0160:     _VERIFY_STATS["params"] += len(params)
+0161:     if is_last:
+0162:         total = sum(_VERIFY_STATS["pieces"])
+0163:         n = _VERIFY_STATS["params"]
+0164:         _VERIFY_STATS["params"] = 0
+0165:         _VERIFY_STATS["pieces"] = []
+0166:         offenders = _VERIFY_STATS.pop("by_param", {})
+0167:         top = sorted(offenders.items(), key=lambda kv: -kv[1])[:12]
+0168:         logger.warning("DELTA-VERIFY sweep: params=%d mismatch_elems=%d offenders=%s", n, total, top)
+0169:         if total:
+0170:             raise RuntimeError(
+0171:                 f"delta state verification FAILED: {total} elements differ between the "
+0172:                 f"server's delta-accumulated weights and the trainer's full export; "
+0173:                 f"top offenders: {top}"
+0174:             )
+0175: 
+0176: 
+0177: def _decode_one(encoding: str, positions: torch.Tensor, values: torch.Tensor, p: dict) -> torch.Tensor:
+0178:     """Densify one param's sparse delta into a full-shape NaN-masked tensor.
+0179: 
+0180:     ``indices`` positions are reinterpreted via an int32 view (8 B/element
+0181:     transient) rather than a per-byte int64 unpack (32 B/element), so even a
+0182:     full-seed flush of a large embedding stays within a few GiB.
+0183:     """
+0184:     numel = math.prod(p["shape"])
+0185:     dtype = getattr(torch, p["dtype"])
+0186:     flat = torch.full((numel,), float("nan"), dtype=dtype, device=values.device) # 全 NaN 底板
+0187:     vals = values[p["val_start"] : p["val_end"]]
+0188:     if vals.numel() == 0:
+0189:         return flat.view(p["shape"])
+0190: 
+0191:     pos_b = positions[p["pos_start"] : p["pos_end"]]
+0192:     if encoding == "indices":
+0193:         # pos_start is always int32-aligned (each entry packs nnz * 4 bytes).
+0194:         idx = pos_b.view(torch.int32).to(torch.int64)
+0195:     else:
+0196:         raise ValueError(f"unsupported delta encoding: {encoding!r}")
+0197: 
+0198:     flat.index_copy_(0, idx, vals.to(dtype)) # 只写 delta 位置
+0199:     return flat.view(p["shape"])
+0200: 
+0201: 
+0202: @contextmanager
+0203: def _masked_copy() -> Iterator[None]:
+0204:     """Temporarily make ``Tensor.copy_`` skip NaN positions in the source.
+0205: 
+0206:     SGLang's per-model ``load_weights`` ultimately lands on ``param.copy_(loaded)``
+0207:     (possibly on a narrowed TP slice). Under this context a NaN-masked source
+0208:     overwrites only the changed positions; fully dense sources (e.g. the first
+0209:     full-seed flush) take the original fast path untouched.
+0210:     """
+0211:     orig_copy = torch.Tensor.copy_
+0212: 
+0213:     def masked_copy_(self: torch.Tensor, src: torch.Tensor, *args, **kwargs) -> torch.Tensor:
+0214:         # Sync-free masked overwrite: boolean advanced indexing (and a
+0215:         # ``mask.all()`` early-out) would force a device->host sync per
+0216:         # parameter -- ruinous for MoE flushes carrying >10k per-expert
+0217:         # entries. ``torch.where`` keeps everything on-stream; a NaN-free
+0218:         # (dense) source degenerates to a plain copy.
+0219:         if isinstance(src, torch.Tensor) and src.is_floating_point() and self.shape == src.shape:
+0220:             cast = src.to(self.dtype)
+0221:             return orig_copy(self, torch.where(torch.isnan(cast), self, cast)) # 含义：目标.copy_(来源) 时，来源中的 NaN 位置**保留目标旧值**，非 NaN 处覆盖
+0222:         return orig_copy(self, src, *args, **kwargs)
+0223: 
+0224:     torch.Tensor.copy_ = masked_copy_
+0225:     try:
+0226:         yield
+0227:     finally:
+0228:         torch.Tensor.copy_ = orig_copy
