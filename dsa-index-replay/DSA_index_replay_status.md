@@ -50,7 +50,39 @@
 ```
 
 
-## 5. 当前限制与代码证据
+## 5. vLLM-Ascend：当前可做与待办事项
+
+### 当前已具备、可直接依托的能力
+
+| 能力 | 主线位置/依据 | 与采集返回的关系 |
+|---|---|---|
+| DSA/SFA indexer 与 top-k 计算 | 普通路径 [sfa_v1.py#L2078](https://github.com/vllm-project/vllm-ascend/blob/db8836752/vllm_ascend/attention/sfa_v1.py#L2078)、压缩 cache 路径 [dsa_v1.py#L2580](https://github.com/vllm-project/vllm-ascend/blob/db8836752/vllm_ascend/attention/dsa_v1.py#L2580)；MTP skip_topk 层共享复用 | 采集接入点；两条路径与共享复用场景都需覆盖 |
+| DSpark 逻辑索引 + 稳定 buffer 契约 | [#19220](https://github.com/vllm-project/vllm-ascend/pull/19220)；[dsa_v1.py#L634](https://github.com/vllm-project/vllm-ascend/blob/db8836752/vllm_ascend/attention/dsa_v1.py#L634) 注释明确 ACL graph capture 冻结地址、算子回放必须从稳定 buffer 读 | 采集 buffer 可直接沿用 caller-provided 稳定 buffer 模式；[T,1] 长度契约需对齐 |
+| CANN 原生 LI 算子 | [#16731](https://github.com/vllm-project/vllm-ascend/pull/16731) 已切换 `torch_npu.npu_quant_lightning_indexer` | 采集基于当前原生算子输出，不依赖已删除绑定 |
+| 图执行与并行基础 | ACL graph capture/warmup；DCP decode FIA v2（[#18752](https://github.com/vllm-project/vllm-ascend/pull/18752)）；CP UT（test_dsa_cp/test_sfa_cp 等，[#18267](https://github.com/vllm-project/vllm-ascend/pull/18267) MRV2 CP 精度覆盖） | 图执行与 CP 场景组合验证的基础 |
+| 传输与 offload | packed SFA C8 分层传输（[#18715](https://github.com/vllm-project/vllm-ascend/pull/18715)）、C8 K-scale 修复（[#19064](https://github.com/vllm-project/vllm-ascend/pull/19064)）、sparse KV offload 文档（[#19020](https://github.com/vllm-project/vllm-ascend/pull/19020)） | PD/传输坐标与 scale 正确性依赖 |
+| 工具与测试 | `benchmarks/prepare_indexer_indices.py`（NPU graph 内索引后处理，含 int32 sentinel 无效值口径）、`quantize_indexer_query.py`；`tests/ut/attention` 的 test_indexer/test_dsa_*/test_sfa_* | 无效值编码口径与后处理性能可先期复用 |
+
+### 待办事项（按前置条件分组）
+
+现在就能启动（不等上游）：
+
+1. 采集协议原型：按 #47280 语义起草开关、输出、token 范围、层映射、int32 编码与无效值（对齐 `prepare_indexer_indices` 的 sentinel 口径）；Draft 收敛前不固化对外字段。
+2. 静态 buffer 与内存设计：61 层×2048 top-k×int32 约 488 KiB/token 的量级评估，纳入 #19190 共享归属；沿用 dsa_v1 稳定 buffer 模式。
+3. 单卡最小闭环：无 CP/MTP 的 prefill+decode 采集→异步 D2H→请求级保存，先内部验证正确性（当前主线无此链路，属待实现）。
+
+依赖上游收敛：
+
+4. 公共链路与 API 对齐：#49555/#62915 收敛后接入调度器保存与接口返回；对齐 #60734 的 DBO microbatch 隔离语义。
+5. CP 场景：等 #18651（A5 FP8 LI C8 + DSA CP）与 #19491 新文档口径后，再定 CP 局部行、因果长度与空分片的采集坐标。
+
+与实现同步推进：
+
+6. 组合场景验证：ACL graph 生命周期、异步、prefix cache、MTP（DSpark 路径与 skip_topk 共享复用）、PD（#18715 C8 分层传输坐标）。
+7. 成本复核：32768 缓存 token 约 15.25 GiB（不含临时拷贝/编码）量级复核，并与 #61938 修复后的 int32 上限对齐。
+8. 真机验证：本系列结论均未做 NPU 数值验证，采集实现接入后需补齐。
+
+## 6. 当前限制与代码证据
 
 
 代码证据固定到 10-23 核对所用主线提交：SGLang `f4a2df3dac`、vLLM-Ascend `db8836752`。

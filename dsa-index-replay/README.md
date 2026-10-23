@@ -13,4 +13,6 @@
 - vLLM-Ascend 合入 [#19220](https://github.com/vllm-project/vllm-ascend/pull/19220) DSpark 双向 SparseFlashMla（逻辑 per-request top-k 索引 + 持久长度 buffer）与 [#19190](https://github.com/vllm-project/vllm-ascend/pull/19190) 层间 O-projection buffer 共享，并经 [#19491](https://github.com/vllm-project/vllm-ascend/pull/19491) 移除旧 DSA-CP 文档；独立的 DSA 索引采集返回实现仍未出现。
 - MoE routed-experts 返回族（R3）与 SWA bounded replay 族本期均有合入，但按既有口径不属于 DSA index replay，详见变化说明的边界小节。
 
+- vLLM-Ascend 侧在状态报告第 5 节列出"当前可做与待办事项"：可直接依托的 NPU indexer 双路径、DSpark 稳定 buffer 契约、图与传输基础，以及按前置条件分组的 8 项待办（不等上游可先行 3 项、依赖上游收敛 2 项、同步验证 3 项）。
+
 相关报告：[RL 六项特性汇总](../rl-replay-consistency/README.md) 中 I（Index Replay）分项与本目录对应；该报告按自然周（merged_at）口径核对，本目录按阶段间隔（本地主线差异 + PR 核查）口径，两者不混用。
