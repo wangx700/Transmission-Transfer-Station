@@ -1,5 +1,10 @@
 # 模型推理与Agent技术资料
 
+## RL Replay 与训练推理一致性
+
+- [六项特性汇总与阅读入口](rl-replay-consistency/README.md)：Sampling Mask、Index、R3、Hidden States、Logprob、Batch 一致性的当前状态、接口与数据格式。
+- [特性流程与代码证据](rl-replay-consistency/特性流程说明.md)、[上一周合入 PR 与流程映射](rl-replay-consistency/上一周PR与流程映射.md)：状态核对于2026-10-23；上一周明确指北京时间2026-10-12至10-18。
+
 **优先阅读：[技术精简版](https://github.com/wangx700/Transmission-Transfer-Station/blob/main/step%E7%B3%BB%E5%88%97%E6%8E%A8%E7%90%86%E5%92%8Cagent%E8%B0%83%E7%A0%94%E8%AF%B4%E6%98%8E/%E6%A0%B8%E5%BF%83%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A/%E6%8A%80%E6%9C%AF%E7%B2%BE%E7%AE%80%E7%89%88.md)。** 集中保留结构、机制、接口与代码；详细专题按需展开。
 
 

@@ -1,0 +1,359 @@
+[
+  {
+    "number": 52231,
+    "title": "[Feature] Support batch invariance on ROCm",
+    "html_url": "https://github.com/vllm-project/vllm/pull/52231",
+    "state": "closed",
+    "draft": false,
+    "merged_at": "2026-10-12T15:53:27.0000000+00:00",
+    "merged_at_beijing": "2026-10-12 23:53:27",
+    "merge_commit_sha": "e0317b28ce3ba4c9bd2ff69d885e3f34688a6d71",
+    "in_reporting_window": true,
+    "flow": "B2/B3 ROCm",
+    "files": [
+      ".buildkite/test-amd.yaml",
+      ".buildkite/test_areas/misc.yaml",
+      "docs/features/batch_invariance.md",
+      "tests/kernels/quantization/test_triton_scaled_mm.py",
+      "tests/v1/determinism/test_batch_invariance.py",
+      "tests/v1/determinism/test_batch_invariance_vlm.py",
+      "tests/v1/determinism/test_cutlass_batch_invariance.py",
+      "tests/v1/determinism/test_lora_shrink_batch_invariant.py",
+      "tests/v1/determinism/test_matmul_batch_invariant.py",
+      "tests/v1/determinism/test_mx_linear_batch_invariant.py",
+      "tests/v1/determinism/test_nvfp4_batch_invariant.py",
+      "tests/v1/determinism/test_online_batch_invariance.py",
+      "tests/v1/determinism/test_rms_norm_batch_invariant.py",
+      "tests/v1/determinism/utils.py",
+      "vllm/distributed/device_communicators/cuda_communicator.py",
+      "vllm/model_executor/determinism/batch_invariant.py",
+      "vllm/model_executor/kernels/linear/__init__.py",
+      "vllm/model_executor/kernels/linear/mxfp4/aiter.py",
+      "vllm/model_executor/kernels/linear/mxfp8/rocm_native.py",
+      "vllm/model_executor/kernels/linear/scaled_mm/__init__.py",
+      "vllm/model_executor/kernels/linear/scaled_mm/triton.py",
+      "vllm/model_executor/layers/fused_moe/experts/aiter_mxfp8_moe.py",
+      "vllm/model_executor/layers/fused_moe/experts/ocp_mx_emulation_moe.py",
+      "vllm/model_executor/layers/quantization/compressed_tensors/triton_scaled_mm.py",
+      "vllm/model_executor/layers/quantization/fp8.py",
+      "vllm/model_executor/layers/quantization/online/fp8.py",
+      "vllm/model_executor/layers/quantization/utils/fp8_utils.py",
+      "vllm/model_executor/layers/utils.py",
+      "vllm/platforms/rocm.py",
+      "vllm/v1/attention/backends/mla/prefill/aiter_flash_attn.py",
+      "vllm/v1/attention/backends/mla/prefill/flash_attn.py"
+    ]
+  },
+  {
+    "number": 55717,
+    "title": "[Bugfix][Frontend] Return all logprobs when completions requests logprobs=-1",
+    "html_url": "https://github.com/vllm-project/vllm/pull/55717",
+    "state": "closed",
+    "draft": false,
+    "merged_at": "2026-10-12T17:05:56.0000000+00:00",
+    "merged_at_beijing": "2026-10-13 01:05:56",
+    "merge_commit_sha": "c599b5971faf7ed8bff4bd1b14713293c20082d6",
+    "in_reporting_window": true,
+    "flow": "L5 全量分数返回",
+    "files": [
+      "tests/entrypoints/openai/completion/test_completion_error.py",
+      "vllm/entrypoints/openai/completion/serving.py"
+    ]
+  },
+  {
+    "number": 59518,
+    "title": "[Frontend] Apply each endpoint's top_logprobs cut in derender",
+    "html_url": "https://github.com/vllm-project/vllm/pull/59518",
+    "state": "closed",
+    "draft": false,
+    "merged_at": "2026-10-15T15:04:05.0000000+00:00",
+    "merged_at_beijing": "2026-10-15 23:04:05",
+    "merge_commit_sha": "3dcfaeb4e8f6b90276c5b5f376010783ac24406c",
+    "in_reporting_window": true,
+    "flow": "L5 endpoint 候选裁切",
+    "files": [
+      "docs/serving/online_serving/derenderer.md",
+      "docs/serving/online_serving/renderer.md",
+      "rust/src/server/src/routes/inference/generate.rs",
+      "rust/src/server/src/routes/inference/generate/convert.rs",
+      "tests/entrypoints/scale_out/derender/test_generate_logprobs_conversion.py",
+      "tests/entrypoints/scale_out/derender/test_logprobs_endpoint_parity.py",
+      "tests/entrypoints/scale_out/token_in_token_out/test_tokens_logprobs.py",
+      "vllm/entrypoints/generate/base/serving.py",
+      "vllm/entrypoints/openai/chat_completion/serving.py",
+      "vllm/entrypoints/openai/completion/serving.py",
+      "vllm/entrypoints/scale_out/token_in_token_out/serving.py",
+      "vllm/renderers/online_derenderer.py"
+    ]
+  },
+  {
+    "number": 59549,
+    "title": "[Rust Frontend] Support logprob_token_ids on OpenAI endpoints",
+    "html_url": "https://github.com/vllm-project/vllm/pull/59549",
+    "state": "closed",
+    "draft": false,
+    "merged_at": "2026-10-12T11:12:31.0000000+00:00",
+    "merged_at_beijing": "2026-10-12 19:12:31",
+    "merge_commit_sha": "21445806bdf6cfc4fdb9b161643e081bd73cc716",
+    "in_reporting_window": true,
+    "flow": "L1/L5 Rust 指定 ID",
+    "files": [
+      "rust/src/server/src/routes/openai/chat_completions/convert.rs",
+      "rust/src/server/src/routes/openai/chat_completions/types.rs",
+      "rust/src/server/src/routes/openai/chat_completions/validate.rs",
+      "rust/src/server/src/routes/openai/completions/convert.rs",
+      "rust/src/server/src/routes/openai/completions/types.rs",
+      "rust/src/server/src/routes/openai/completions/validate.rs",
+      "rust/src/server/src/routes/openai/utils/logprobs.rs",
+      "rust/src/server/src/routes/tests.rs"
+    ]
+  },
+  {
+    "number": 59985,
+    "title": "[Bugfix] Keep GateLinear batch invariant under VLLM_BATCH_INVARIANT",
+    "html_url": "https://github.com/vllm-project/vllm/pull/59985",
+    "state": "closed",
+    "draft": false,
+    "merged_at": "2026-10-13T19:43:54.0000000+00:00",
+    "merged_at_beijing": "2026-10-14 03:43:54",
+    "merge_commit_sha": "68fc395554d2ff16f91457bc031334006339f77c",
+    "in_reporting_window": true,
+    "flow": "B3 gate GEMM",
+    "files": [
+      "vllm/model_executor/layers/fused_moe/router/gate_linear.py"
+    ]
+  },
+  {
+    "number": 60437,
+    "title": "[Frontend] Resolve logprobs on the parsed streaming derender path",
+    "html_url": "https://github.com/vllm-project/vllm/pull/60437",
+    "state": "closed",
+    "draft": false,
+    "merged_at": "2026-10-16T10:04:16.0000000+00:00",
+    "merged_at_beijing": "2026-10-16 18:04:16",
+    "merge_commit_sha": "024c5188bf5a8a464124b36519c1e7de76648625",
+    "in_reporting_window": true,
+    "flow": "L5 parser 流式输出",
+    "files": [
+      "docs/serving/online_serving/derenderer.md",
+      "tests/entrypoints/scale_out/derender/test_derender.py",
+      "tests/entrypoints/scale_out/derender/test_derender_parity.py",
+      "tests/entrypoints/scale_out/derender/test_derender_stream.py",
+      "tests/entrypoints/scale_out/derender/utils.py",
+      "vllm/renderers/online_derenderer.py"
+    ]
+  },
+  {
+    "number": 60524,
+    "title": "[Bugfix] Keep compressed-tensors wNa16 linear layers batch invariant",
+    "html_url": "https://github.com/vllm-project/vllm/pull/60524",
+    "state": "closed",
+    "draft": false,
+    "merged_at": "2026-10-13T19:43:40.0000000+00:00",
+    "merged_at_beijing": "2026-10-14 03:43:40",
+    "merge_commit_sha": "b33cb8123707977aed605937a772bf0bc5d2a92d",
+    "in_reporting_window": true,
+    "flow": "B3 wNa16 Linear",
+    "files": [
+      "vllm/model_executor/layers/quantization/compressed_tensors/schemes/compressed_tensors_wNa16.py"
+    ]
+  },
+  {
+    "number": 61110,
+    "title": "[Model] Support EAGLE3/DFlash aux hidden states for GraniteMoe and GraniteMoeShared",
+    "html_url": "https://github.com/vllm-project/vllm/pull/61110",
+    "state": "closed",
+    "draft": false,
+    "merged_at": "2026-10-14T16:01:15.0000000+00:00",
+    "merged_at_beijing": "2026-10-15 00:01:15",
+    "merge_commit_sha": "9e2b579aabe9f289791867de539f999c188b63cd",
+    "in_reporting_window": true,
+    "flow": "H2/H3 模型内部提取",
+    "files": [
+      "vllm/model_executor/models/granitemoe.py",
+      "vllm/model_executor/models/granitemoeshared.py"
+    ]
+  },
+  {
+    "number": 61118,
+    "title": "[Bugfix] Enable inductor batch-invariant mode under VLLM_BATCH_INVARIANT",
+    "html_url": "https://github.com/vllm-project/vllm/pull/61118",
+    "state": "closed",
+    "draft": false,
+    "merged_at": "2026-10-17T18:53:06.0000000+00:00",
+    "merged_at_beijing": "2026-10-18 02:53:06",
+    "merge_commit_sha": "03e8300d2cac77b24f7ab6013a803369ee64c19e",
+    "in_reporting_window": true,
+    "flow": "B2 编译配置",
+    "files": [
+      "vllm/model_executor/determinism/batch_invariant.py"
+    ]
+  },
+  {
+    "number": 61161,
+    "title": "[Bugfix][Spec Decode] Avoid reusing random draws across block verification rounds",
+    "html_url": "https://github.com/vllm-project/vllm/pull/61161",
+    "state": "closed",
+    "draft": false,
+    "merged_at": "2026-10-15T21:46:38.0000000+00:00",
+    "merged_at_beijing": "2026-10-16 05:46:38",
+    "merge_commit_sha": "9edcc7fa7ec858e13d4dc10ed968b741e2c95d6a",
+    "in_reporting_window": true,
+    "flow": "采样/验证 RNG→M/L",
+    "files": [
+      "tests/v1/spec_decode/test_dspark_topk.py",
+      "tests/v1/spec_decode/test_lilicorr.py",
+      "tests/v1/spec_decode/test_rejection_sampler_utils.py",
+      "tests/watermarking/test_gumbel.py",
+      "vllm/v1/worker/gpu/sample/gumbel.py",
+      "vllm/v1/worker/gpu/sample/watermark.py",
+      "vllm/v1/worker/gpu/spec_decode/dflash2/speculator.py",
+      "vllm/v1/worker/gpu/spec_decode/rejection_sampler_utils.py"
+    ]
+  },
+  {
+    "number": 61347,
+    "title": "[RL][Frontend] Return weight-version spans on OpenAI completions and chat",
+    "html_url": "https://github.com/vllm-project/vllm/pull/61347",
+    "state": "closed",
+    "draft": false,
+    "merged_at": "2026-10-17T02:08:08.0000000+00:00",
+    "merged_at_beijing": "2026-10-17 10:08:08",
+    "merge_commit_sha": "b3a7e2ff6e7d182cd9c230cdb04dd66043b9f413",
+    "in_reporting_window": true,
+    "flow": "L5/RL 权重版本归属",
+    "files": [
+      "docs/training/async_rl.md",
+      "tests/entrypoints/openai/chat_completion/test_serving_chat.py",
+      "tests/entrypoints/openai/completion/test_completion_error.py",
+      "vllm/entrypoints/openai/chat_completion/protocol.py",
+      "vllm/entrypoints/openai/chat_completion/serving.py",
+      "vllm/entrypoints/openai/completion/protocol.py",
+      "vllm/entrypoints/openai/completion/serving.py"
+    ]
+  },
+  {
+    "number": 61388,
+    "title": "[Bugfix][MoE] Restore TP-sharded routed-expert capture for DP=1",
+    "html_url": "https://github.com/vllm-project/vllm/pull/61388",
+    "state": "closed",
+    "draft": false,
+    "merged_at": "2026-10-16T00:21:25.0000000+00:00",
+    "merged_at_beijing": "2026-10-16 08:21:25",
+    "merge_commit_sha": "a8be1500bad93d3c459e435bf71194aa8062e49d",
+    "in_reporting_window": true,
+    "flow": "R3 TP/SP 行恢复",
+    "files": [
+      "tests/model_executor/test_routed_experts_capture.py",
+      "tests/models/test_deepseek_v41_replay_batch.py",
+      "vllm/forward_context.py",
+      "vllm/model_executor/layers/fused_moe/routed_experts_capturer.py"
+    ]
+  },
+  {
+    "number": 61474,
+    "title": "[CI] Shard batch invariance, Kimi prefix cache, EP eval and generate APIs automatically",
+    "html_url": "https://github.com/vllm-project/vllm/pull/61474",
+    "state": "closed",
+    "draft": false,
+    "merged_at": "2026-10-13T23:14:19.0000000+00:00",
+    "merged_at_beijing": "2026-10-14 07:14:19",
+    "merge_commit_sha": "0da66a6e468653cd8294d5fe16831bb3d7367284",
+    "in_reporting_window": true,
+    "flow": "B4 CI 基础设施",
+    "files": [
+      ".buildkite/test_areas/entrypoints.yaml",
+      ".buildkite/test_areas/lm_eval.yaml",
+      ".buildkite/test_areas/misc.yaml",
+      ".buildkite/test_areas/models_basic.yaml"
+    ]
+  },
+  {
+    "number": 61861,
+    "title": "[CI] Shard the AMD mirrors of the DP, RayExecutorV2 and batch invariance steps automatically",
+    "html_url": "https://github.com/vllm-project/vllm/pull/61861",
+    "state": "closed",
+    "draft": false,
+    "merged_at": "2026-10-15T21:48:20.0000000+00:00",
+    "merged_at_beijing": "2026-10-16 05:48:20",
+    "merge_commit_sha": "9b99ccb56bc90d9f6524f0861af274ea2af02f70",
+    "in_reporting_window": true,
+    "flow": "B4 CI 基础设施",
+    "files": [
+      ".buildkite/test_areas/distributed.yaml",
+      ".buildkite/test_areas/misc.yaml"
+    ]
+  },
+  {
+    "number": 61996,
+    "title": "[Perf][Sampler] Speed up the small-batch split top-p pipeline",
+    "html_url": "https://github.com/vllm-project/vllm/pull/61996",
+    "state": "closed",
+    "draft": false,
+    "merged_at": "2026-10-17T04:22:12.0000000+00:00",
+    "merged_at_beijing": "2026-10-17 12:22:12",
+    "merge_commit_sha": "7b6310c109135b1b4aba42ed363697987380fd10",
+    "in_reporting_window": true,
+    "flow": "M3 过滤性能",
+    "files": [
+      "tests/v1/sample/test_topk_topp_sampler.py",
+      "tests/v1/worker/test_gpu_sampler_flags.py",
+      "tests/watermarking/test_watermarking.py",
+      "vllm/model_executor/models/diffusion_gemma.py",
+      "vllm/v1/sample/ops/topk_topp_sampler.py",
+      "vllm/v1/sample/ops/topk_topp_triton.py",
+      "vllm/v1/watermarking/gpu_sampler.py",
+      "vllm/v1/worker/gpu/sample/sampler.py",
+      "vllm/v1/worker/gpu/sample/states.py"
+    ]
+  },
+  {
+    "number": 62048,
+    "title": "[ROCm][CI] Enable batch invariance for the ngram scheduling accuracy test",
+    "html_url": "https://github.com/vllm-project/vllm/pull/62048",
+    "state": "closed",
+    "draft": false,
+    "merged_at": "2026-10-16T18:36:15.0000000+00:00",
+    "merged_at_beijing": "2026-10-17 02:36:15",
+    "merge_commit_sha": "307c5844ad2d3003154f3a768540e686e37dddec",
+    "in_reporting_window": true,
+    "flow": "B4 CI",
+    "files": [
+      "tests/v1/e2e/general/test_async_scheduling_accuracy.py"
+    ]
+  },
+  {
+    "number": 62302,
+    "title": "[Doc][RL] Document routed experts return for MoE routing replay (R3)",
+    "html_url": "https://github.com/vllm-project/vllm/pull/62302",
+    "state": "closed",
+    "draft": false,
+    "merged_at": "2026-10-18T13:11:45.0000000+00:00",
+    "merged_at_beijing": "2026-10-18 21:11:45",
+    "merge_commit_sha": "371745ebd6c12f314402c6c319de2e7ef82c2981",
+    "in_reporting_window": true,
+    "flow": "R1–R6 文档",
+    "files": [
+      "docs/training/rlhf.md",
+      "docs/training/routed_experts.md",
+      "mkdocs.yaml"
+    ]
+  },
+  {
+    "number": 62305,
+    "title": "[Doc] Document /inference/v1/generate request/response fields and DP rank header",
+    "html_url": "https://github.com/vllm-project/vllm/pull/62305",
+    "state": "closed",
+    "draft": false,
+    "merged_at": "2026-10-18T15:26:37.0000000+00:00",
+    "merged_at_beijing": "2026-10-18 23:26:37",
+    "merge_commit_sha": "fe8f2140eeb6103e2ac01fbe2ce40dcc9dba19de",
+    "in_reporting_window": true,
+    "flow": "L1/L5 接口文档",
+    "files": [
+      "docs/serving/online_serving/token_in_token_out.md",
+      "docs/training/sampling_mask.md",
+      "examples/scale_out/token_generation_client.py"
+    ]
+  }
+]

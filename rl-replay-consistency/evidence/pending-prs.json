@@ -1,0 +1,47 @@
+[
+  {
+    "number": 49555,
+    "title": "[Feature][AuxOutput] Replay ordinary raw indexer selections",
+    "state": "open",
+    "draft": true,
+    "merged_at": null,
+    "updated_at": "2026-10-22T13:29:06Z",
+    "html_url": "https://github.com/vllm-project/vllm/pull/49555"
+  },
+  {
+    "number": 57736,
+    "title": "feat: add windowed hidden-state capture for vLLM rollout",
+    "state": "open",
+    "draft": false,
+    "merged_at": null,
+    "updated_at": "2026-10-14T20:52:00Z",
+    "html_url": "https://github.com/vllm-project/vllm/pull/57736"
+  },
+  {
+    "number": 37002,
+    "title": "[Core][Feature] Observation Plugin for Intercepting & Routing on Activations",
+    "state": "open",
+    "draft": false,
+    "merged_at": null,
+    "updated_at": "2026-07-19T17:08:17Z",
+    "html_url": "https://github.com/vllm-project/vllm/pull/37002"
+  },
+  {
+    "number": 52522,
+    "title": "[Feature] Batch-invariant support for speculative decoding",
+    "state": "open",
+    "draft": false,
+    "merged_at": null,
+    "updated_at": "2026-09-03T16:26:31Z",
+    "html_url": "https://github.com/vllm-project/vllm/pull/52522"
+  },
+  {
+    "number": 54955,
+    "title": "[DeepSeek-V4][Preview][DO NOT MERGE] Batch-invariant kernels for 0-diff RL",
+    "state": "open",
+    "draft": true,
+    "merged_at": null,
+    "updated_at": "2026-10-21T22:55:29Z",
+    "html_url": "https://github.com/vllm-project/vllm/pull/54955"
+  }
+]
