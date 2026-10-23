@@ -1,4 +1,4 @@
-# 非量化 LoRA 进度跟踪（SGLang / vLLM / vLLM-Ascend）
+﻿# 非量化 LoRA 进度跟踪（SGLang / vLLM / vLLM-Ascend）
 
 跟踪三个上游仓库非量化 LoRA 推理支持的阶段变化、合入 PR 与新增跟踪项。每期说明回答三个问题：间隔期间哪些功能发生变化、对应 PR 修改了什么、现在应新增跟踪哪些 PR。
 
@@ -15,7 +15,7 @@
 | 文件 | 说明 |
 |---|---|
 | [LoRA阶段进展与PR跟踪_2026-10-16至2026-10-23.md](./LoRA阶段进展与PR跟踪_2026-10-16至2026-10-23.md) | 本期阶段进展与 PR 跟踪说明（主文档） |
-| [SGLang_vLLM_Ascend_LoRA支持与工作报告.md](./SGLang_vLLM_Ascend_LoRA支持与工作报告.md) | 整体支持与工作报告（10-16 基线，主文档引用） |
+| [SGLang_vLLM_Ascend_LoRA支持与工作报告.md](./SGLang_vLLM_Ascend_LoRA支持与工作报告.md) | 整体支持与工作报告（10-23 基线，主文档引用） |
 | [LoRA阶段进展与PR跟踪_2026-10-10至2026-10-16.md](./LoRA阶段进展与PR跟踪_2026-10-10至2026-10-16.md) | 上一期阶段进展（10-10 → 10-16） |
 | [evidence/merged-prs-2026-10-16_to_10-23.json](./evidence/merged-prs-2026-10-16_to_10-23.json) | 本期合入提交与上期跟踪 PR 状态的结构化证据 |
 
