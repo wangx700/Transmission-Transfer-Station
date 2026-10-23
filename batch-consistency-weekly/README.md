@@ -13,6 +13,16 @@
 2. **vllm-ascend**：主线 BI 面零代码改动（算子注册 / v2 sample / batch_invariance 文档 / TP4 consistency e2e 均无 diff），调度限制未解除；窗口内 151 个合入集中在 V4.1 bounded replay 跨 runner/PCP 扩展、PCP 图回放 padding、GDN 状态索引与 MTP 正确性，属于"入图 + replay + 并行组合"的正确性地基，不是新增 BI 能力。
 3. **需要新增跟踪**（详见阶段变化文档第 5 节）：vLLM #62192 / #62017 / #62193 / #62219（GEMM 分桶不变性、Mamba2 SSD BI 与 scope 基础设施、draft 豁免作用域）、vllm-ascend #19442（Qwen3.5-35B-A3B 混合 GDN+MoE 的 TP4 BI e2e）与 #19237/#19238（DSA O-proj 通信分组）、SGLang #45063 / #44923（NPU 确定性算法、动态 batch 贪心标志刷新）；verl #8025 的 rollout/actor logprob mismatch 指标已合入，NPU 接入等价指标是当下动作。
 
+## vllm-ascend 待做事项速览
+
+完整清单（12 项，含依据与对照）见[阶段变化文档第 7 节](consistency_changes_20261016_20261023.md#7-vllm-ascend-可以做--待做的事情)。P0 三项互相独立、不依赖未合入的上游 PR，建议最先启动：
+
+1. **接入 verl #8025 等价的训推差异度量**（NPU rollout/actor raw logprob mismatch：count 求和、diff_max、one-ULP 掩蔽），Qwen3 dense 先出首轮统计。
+2. **NPU GEMM/算子分派自查**：实现选择与 tile 分桶是否依赖 M（token 数），补算子级跨 batch 不变性测试（对照 vLLM #62192 思路）。
+3. **V4/V4.1 图回放回归矩阵**：trace replay 固定 decode 历史 → eager vs graph、BS1/BSN、同图档/跨图档、有无 padding，逐 token logits/logprob bitwise 比较（覆盖 #18936/#19034/#19192/#19321/#19177 修复点）。
+
+P1：Router/Top-K 规则核对（对照 #59985/#59645/#60453）、通信归约顺序核对（#19237 / #59925 契约）、动态 batch 贪心标志自查（对照 SGLang #44923）与 GDN 混合回归（#19378 + SGLang 三 PR）；编译等价约束与 DS4 数值契约清单随上游收敛推进。P2：CI 扩展（移植 ROCm"调度准确性 + BI"做法）、spec/MTP 单独验收。#19442 属切片基础覆盖，不是完整模型验收。
+
 ## 与 rl-replay-consistency 的关系
 
 [rl-replay-consistency](../rl-replay-consistency/README.md) 以六项特性（Sampling Mask / Index / R3 / Hidden States / Logprob / Batch 一致性）为主轴，统计窗为 10-12 → 10-19；本目录沿袭其中 B（Batch 一致性）线索，统计窗为 10-16 → 10-23，并把范围扩展到 vllm-ascend 的合入明细与训练依赖（verl / Megatron）。两者时间窗有重叠，检索口径不同，不互相取代。

@@ -126,7 +126,28 @@
 2. **DS4 契约**：拆分 PR 无合入进展；vLLM 主线的 cooperative TopK 精确化（#59645）与 FP32 router GEMM 扩展（#62126/#62042）是可参考的数值规则，继续等 #60442~#60454/#59925/#59929 收敛。
 3. **生产组合**：Ascend 图回放/bounded replay/PCP 修复持续累积（#18936/#19034/#19192/#19321），"分块、缓存、抢占不与 BI 组合"的限制未变；建议把本期的 GDN 索引修复（#19378）与 SGLang GDN 三 PR 的边界问题合并成一份混合模型回归清单。
 
-## 7. 本次代码证据与验收边界
+## 7. vllm-ascend 可以做 / 待做的事情
+
+表注：基于 10-16 → 10-23 窗口证据整理。"可直接启动"不依赖尚未合入的上游 PR；"需随上游收敛"先做准备工作，等对应 PR 合入后对齐；"验收动作"用现有主线工具（trace replay #15604、NPU selected-logprob、BI 开关）即可执行。输出文本一致、seed 固定、BI=1 均不能代替数值验收；backward 逐 bit 可复现是另一个目标。
+
+| 优先级 | 类别 | 事项 | 依据 / 对照 |
+| --- | --- | --- | --- |
+| P0 | 可直接启动 | 接入 verl #8025 等价的训推差异度量：NPU rollout 与 actor 的 raw logprob mismatch（mismatch_count 聚合窗口内求和、diff_max、one-ULP 概率差掩蔽），先在 Qwen3 dense 小模型跑首轮统计 | [verl #8025](https://github.com/verl-project/verl/pull/8025) 已合入（10-22），指标语义可直接复刻 |
+| P0 | 可直接启动 | NPU GEMM/算子分派自查：matmul、归约、norm 的实现选择与 tile 分桶是否依赖 M（token 数），补算子级跨 batch 不变性测试 | vLLM [main #62192](https://github.com/vllm-project/vllm/pull/62192) 的 M-bucket invariance 测试思路；Ascend 算子注册 `vllm_ascend/batch_invariant.py` 覆盖面核对 |
+| P0 | 可直接启动 | V4/V4.1 图回放回归矩阵：trace replay 固定 decode 历史 → eager vs graph、BS1/BSN、同图档/跨图档、有无 padding，逐 token logits/logprob bitwise 比较 | 工具已具备（#15604 + MRV2 patch）；覆盖本期修复点 #18936/#19034/#19192/#19321/#19177 |
+| P1 | 可直接启动 | Router/Top-K 数值规则核对：router 是否绕过 BI 替换、FP32 路径是否统一；TopK 的 tie-break、候选溢出与并列路径是否确定 | vLLM #59985（GateLinear guard）与 #59645（TopK 溢出精确化）是参照规则；DS4 对照 #60453 复合键 |
+| P1 | 可直接启动 | 通信归约顺序核对：DSA O-proj / HCCL collective 的分组规则是否随 runtime batch 漂移；空 rank 是否参加 collective | Ascend [#19237](https://github.com/vllm-project/vllm-ascend/pull/19237)（Open）点名的 O-proj 问题；vLLM #59925 的空 rank 契约 |
+| P1 | 可直接启动 | 动态 batch 状态自查：scheduler 过滤/移除请求后，贪心与采样标志（is_all_greedy 类状态）是否刷新；权重切分防御沿用已合入的 #17725 检查 | SGLang [#44923](https://github.com/sgl-project/sglang/pull/44923) 是同类 bug 的参照 |
+| P1 | 可直接启动 | GDN 混合模型回归：核对 NPU GDN 是否存在 SGLang #44076/#44194 的分块边界/tile 问题（不能直接认定同一 bug）；GDN 状态索引越界修复 #19378 纳入回归 | SGLang GDN 三 PR + Ascend #19378 + Open 的 [#19442](https://github.com/vllm-project/vllm-ascend/pull/19442) |
+| P1 | 需随上游收敛 | 编译等价约束：查 torch-ascend 是否具备 inductor batch_invariant 等价配置；#60074 收敛后决定搬运方案，避免与已合入的 #61118 重复；把静态 kernel runtime 初始化纳入 BI × 图模式组合回归 | vLLM #61118 已合入、#60074 仍 Open；Ascend #19177 |
+| P1 | 需随上游收敛 | DS4 数值契约落地：等 #60442~#60454/#59925/#59929 收敛前，先按其 PR 描述固化 NPU 侧规则清单（Top-K 复合键与 tie-break、C4/C128 索引与无效槽屏蔽、HC 单 token 等价拆分与 padding 行处理、专家容量/聚合顺序、shared expert 单次执行），做成可执行验收表 | 拆分 PR 描述即契约草案；HC padding 行对照 vLLM #62745 |
+| P2 | 需随上游收敛 | spec decode / MTP：等 #62193 + #52522 收敛后对照 draft 豁免方案；MTP 状态恢复验收单独做（#18765 仍 Open，不承诺 BI）；DSpark 双向 SparseFlashMla（#19220 已合入）纳入回归 | vLLM #52522/#62193；Ascend #18765/#19220 |
+| P2 | 验收动作 | CI 扩展：把 ROCm"调度准确性测试开启 BI"的做法移植到 Ascend nightly（ngram/eagle3 类测试 + pin 归约/编译配置） | vLLM #62048/#62893/#62280；Ascend #18831/#19074/#19166 已扩 nightly，可叠加 BI 维度 |
+| P2 | 验收动作 | 验收边界纪律：#19442 是切片 + dummy 权重的基础覆盖，不是完整模型验收；Ascend 模型名单"已列入"不等于全组合通过；每步扩展记录性能成本 | 本报告第 2、7 节的既有口径 |
+
+建议的启动顺序：先做 P0 三项（度量接入 → 算子分派自查 → 图回放回归矩阵），三者互相独立、都不依赖上游合入，且分别对应"训推对齐入口""算子契约""生产组合正确性"三条线；P1 的通信与 GDN 回归可与其并行。
+
+## 8. 本次代码证据与验收边界
 
 - vLLM 主线 diff：`vllm/model_executor/determinism/batch_invariant.py`（+4，#61118）、`docs/features/batch_invariance.md`（+4，#61254）；`vllm/v1/worker/gpu/sample/` 变更来自 #61996/#52477/#62888。
 - vllm-ascend 主线 diff：`vllm_ascend/batch_invariant.py`、`worker/v2/sample/`、`docs/.../batch_invariance.md`、`tests/.../consistency/` 均为空 diff——BI 主线零改动的直接证据。

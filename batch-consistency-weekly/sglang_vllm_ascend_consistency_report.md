@@ -167,3 +167,19 @@ HC 指 Hyper-Connections，mHC 指 Manifold-Constrained Hyper-Connections，负�
 ```
 
 输出文本一致、seed 固定、BI 开关为 1 均不能代替数值验收。需要分别确认算子 batch 不变性、推理跨 batch 一致性、训练与 rollout 前向一致性；backward 逐 bit 可复现是另一个目标。
+
+### vllm-ascend 待做事项（2026-10-23 刷新）
+
+表注：完整清单与依据见[10 月 16 日至 23 日变化说明](./consistency_changes_20261016_20261023.md)第 7 节。"可直接启动"不依赖未合入的上游 PR；P0 三项互相独立，建议最先做。
+
+| 优先级 | 类别 | 事项 | 对照 |
+| --- | --- | --- | --- |
+| P0 | 可直接启动 | 接入 verl #8025 等价的 rollout/actor raw logprob mismatch 度量，Qwen3 dense 先跑首轮统计 | verl #8025 已合入 |
+| P0 | 可直接启动 | NPU GEMM/算子分派自查：实现选择与 tile 分桶是否依赖 M，补算子级跨 batch 不变性测试 | vLLM #62192 思路；`vllm_ascend/batch_invariant.py` 覆盖面 |
+| P0 | 可直接启动 | V4/V4.1 图回放回归矩阵：trace replay 固定历史 → eager vs graph、BS1/BSN、同图档/跨图档、有无 padding，逐 token 比较 | #15604 工具；覆盖 #18936/#19034/#19192/#19321/#19177 |
+| P1 | 可直接启动 | Router/Top-K 规则核对（绕过 BI 替换、FP32 统一、tie-break/溢出确定性） | vLLM #59985/#59645/#60453 |
+| P1 | 可直接启动 | 通信归约顺序核对（DSA O-proj / HCCL 分组是否随 batch 漂移；空 rank 参加 collective） | Ascend #19237；vLLM #59925 契约 |
+| P1 | 可直接启动 | 动态 batch 状态自查（过滤请求后贪心/采样标志刷新）与 GDN 混合模型回归 | SGLang #44923；SGLang GDN 三 PR + Ascend #19378 |
+| P1 | 需随上游收敛 | 编译等价约束（torch-ascend 是否有 inductor BI 等价配置；#60074 收敛后对齐） | vLLM #61118 已合入、#60074 Open |
+| P1 | 需随上游收敛 | DS4 数值契约清单：按拆分 PR 描述固化 Top-K/索引/HC/专家聚合规则，做成可执行验收表 | #60442~#60454/#59925/#59929（均 Open） |
+| P2 | 验收动作 | CI 扩展：调度准确性测试开启 BI（移植 ROCm 做法）；spec/MTP 单独验收 | vLLM #62048/#62893；Ascend #18765/#19220 |
