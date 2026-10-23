@@ -1,0 +1,36 @@
+故障日志摘录（从本次 SSH 查询输出整理，非完整原始 plog 下载）
+设备：177.2.25.1
+容器：codex-step5-225-yyy-cann92
+故障日期：2026-10-20；以下时间使用日志自身时间。
+远端源文件：/root/ascend/log/debug/plog/plog-192788_20261020190520185.log
+说明：以下保留已获取的关键原文；省略字段用 ... 标注。完整文件下载时 SSH 已断开，22端口连接失败。
+
+【任务超时；源文件第99685行】
+[ERROR] RUNTIME(192788,):2026-10-20-19:13:41.842.714 [task_recycle_cqrpt_base.cc:84]193259 PrintTaskErrorMsg:Task run timeout, stream_id=61, pos=1070, task_sn=19262517, task_type=66(KERNEL_AIVEC), errType=0x4(task timeout), sqSwStatus=0x105.
+
+【收集故障kernel；源文件第100498行】
+[INFO] IDEDD(192788,):2026-10-20-19:13:41.849.583 [kernel_info_collector.cpp:71][tid:193259] Kernel handle: 0x54ac1eb8, kernel size: 1037256, name addr: 0xfffe9c4085f0, name size: 69, kernel name: MoeDistributeDispatchV3_e92e3b86d5d6432a166d18733d3c3613_1024_mix_aiv
+
+【保存异常信息；源文件第100709行】
+[INFO] IDEDD(192788,):2026-10-20-19:13:41.850.369 [dump_args.cpp:473][tid:193259] [Dump][Exception] The exception dump file path is /data/yyy/mp_diagnostic_20261020_175712/server/extra-info/data-dump/4/exception_info.61.19262517.20261020191341850
+
+【MC2转储；源文件第100853行】
+[ERROR] OP(192788,):2026-10-20-19:13:41.856.398 [mega_moe_tiling.cpp:179][OPS_BASE][DumpToFile][193259] OpName:[Mc2Exception] Start to dump file. The dump path is /data/yyy/mp_diagnostic_20261020_175712/server/extra-info/data-dump/4/mc2_exception_info_MoeDistributeDispatchV3.61.19262517.20261020111341856
+
+【同步失败上下文；源文件第100860～100872行范围内】
+[ERROR] RUNTIME(192788,):2026-10-20-19:13:41.856.664 [stream.cc:1834]193259 GetError:Stream Synchronize failed, stream_id=61, retCode=0x30, [vector core timeout].
+[ERROR] RUNTIME(192788,):2026-10-20-19:13:41.856.667 [stream.cc:1837]193259 GetError:Vector Core kernel execution failed, retCode=0x30.
+
+【故障kernel确认；源文件第100869行】
+[ERROR] RUNTIME(192788,):2026-10-20-19:13:41.856.701 [stream.cc:1837]193259 GetError:[DFX_INFO]AI Core kernel execution failed, device_id=4, stream_id=61, report_stream_id=61, task_id=1070, flip_num=6414, fault kernel_name=MoeDistributeDispatchV3_e92e3b86d5d6432a166d18733d3c3613_1024, fault kernel info ext=none, program id=66, hash=7799095835849776000.
+
+【HCCL回调；来源为run/plog/plog-192788_20261020180548788.log第1605～1607行】
+[INFO] HCCL(192788,):2026-10-20-19:13:41.855.293 [hcclCommTaskException.cc:249] [193259][TaskExceptionHost][Process], taskid[19262517], streamid[61], tid[193262], deviceid[4], retcode[507034], type[2]
+[INFO] HCCL(192788,):2026-10-20-19:13:41.855.313 [global_mirror_tasks.cc:136][193259][FindTaskInfo]devId[4] streamId(sqId)[61] not hccl task.
+[WARNING] HCCL(192788,):2026-10-20-19:13:41.855.315 [hcclCommTaskException.cc:274] [193259][ProcessHcclTaskException]FindTaskInfo not found, deviceid[4] streamid[61] taskid[19262517].
+
+【后续清理错误；来自同一debug plog尾部，尚未获取源行号】
+[ERROR] UNIFIEDBUS(192788,):2026-10-20-19:13:48.331.747 [UDMA][udma_u_ungrant_seg:129] ungrant segment failed, ret = -22.
+[ERROR] UNIFIEDBUS(192788,):2026-10-20-19:13:48.338.458 [UDMA][udma_u_ungrant_seg:129] ungrant segment failed, ret = -22.
+
+结论边界：明确的超时任务为MoeDistributeDispatchV3；后续UDMA清理错误晚于超时，尚不能证明驱动为根因。CSA检查是Python同步暴露点。
