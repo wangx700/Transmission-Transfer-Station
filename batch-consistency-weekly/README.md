@@ -6,6 +6,13 @@
 - [阶段变化说明：2026-10-16 → 2026-10-23](consistency_changes_20261016_20261023.md)（本期新增）
 - [阶段变化说明：2026-10-10 → 2026-10-16](consistency_changes_20261010_20261016.md)（上期，保持原文）
 - [核查方法与 PR diff 证据](evidence/README.md)
+- [DeepInfer / DeepSeek-V4.1：Batch 不变性流程、算子与 Ascend 复用说明](deepinfer_v41_batch_invariance.md)（固定版本源码专题，含调用链、明确阻塞和复用边界）
+
+## DeepInfer V4.1 专题补充
+
+DeepInfer 的 Ascend 部分算子已有确定性实现，包括 HC prenorm 固定 K 分片与有序累加、按序列身份采样，以及可显式启用的 EP dispatch 确定性排序；FlashMLA Ascend 路径本身不启用 split-KV。但框架仍禁止完整 BI，BI 与专家重排同时开启时要求的单次 combine 归约还与 DeepEP-Ascend 参数契约冲突。库能力存在不等于框架已启用，更不等于整模型验收通过。详见[专题第 4 节](deepinfer_v41_batch_invariance.md#4-ascend-当前可以复用什么)。
+
+专题基线为 `8b161497` 及其锁定子模块，不计入本期新增提交；未进行 GPU/NPU 实测。
 
 ## 本期三点结论
 

@@ -1,5 +1,7 @@
 # SGLang / vLLM / vllm-ascend 一致性支持与适配汇总
 
+补充阅读：[DeepInfer V4.1 固定版本调研](deepinfer_v41_batch_invariance.md)。这是独立实现对照，不改变本文其他框架的主线支持结论。Ascend 可借鉴/复用 HC prenorm 固定分片与有序累加、序列身份采样、dispatch 排序、算子级逐行及模型级固定轨迹对比；迁入 vllm-ascend 需要适配布局、ABI、流与执行图，并独立验收。DeepInfer 当前明确禁止 NPU 完整 BI，且专家重排场景需要的单次 combine 归约与 DeepEP-Ascend 强制允许多次归约存在接口冲突；同名接口不代表同等保证。细节与固定提交证据见专题第 3～6 节。
+
 更新日期：2026-10-23（北京时间）。当前状态快照；阶段变化单独见[10 月 16 日至 23 日变化说明](./consistency_changes_20261016_20261023.md)与[10 月 10 日至 16 日变化说明](./consistency_changes_20261010_20261016.md)。范围：非量化模型的 batch 一致性和训推一致性；本次已 fetch 并快进更新相关仓库，结合 GitHub PR 最新状态静态核查，未运行 GPU/NPU 数值测试。PR 作者报告的测试结果与本次实测严格区分。
 
 ## 1. 核心结论

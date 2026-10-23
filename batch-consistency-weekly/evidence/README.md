@@ -1,5 +1,11 @@
 # 核查方法与证据
 
+## DeepInfer V4.1 固定版本源码补充
+
+2026-10-23（北京时间）整理了[专题报告](../deepinfer_v41_batch_invariance.md)。分析 DeepInfer `8b16149741a4935e1dec8cea27853f273b374c5b` 及锁定子模块：DeepGEMM `1fc9c66975ee322d628b3288534ca0e9ce12a64d`、FlashMLA `2e5429fc5653bab6e081f09477126f731882a6a9`、DeepEP `93eb6eb238127e96c6d7a4a625a6dad158348509`、DeepGEMM-Ascend `3a35326271b069b8b5bf1a754435acd6cc91575b`、DeepEP-Ascend `3b25377d04b24fc6154698ded78a2bcb2c59afff`。专题中提供固定 SHA 的源码链接，便于复核。
+
+核查路径：Worker 开关 → Decoder/Attention/Indexer/MoE 调用链 → 子模块确定性分支 → 测试断言。明确区分 HC prenorm 已有适配、dispatch 排序可选能力、combine 参数冲突和其余待测项。模型测试的 golden token 用于固定历史，验收仍要比较真实 logprob；算子测试代码存在不表示本次运行通过。未做硬件实验，不将条件冲突外推为全部 NPU 算子失败，也不把发布实现计作本周新增改动。
+
 核对时点：2026-10-23 12:00 前后（北京时间）。
 
 ## 方法
