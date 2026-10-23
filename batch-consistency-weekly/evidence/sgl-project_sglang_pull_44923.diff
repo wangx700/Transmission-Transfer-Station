@@ -1,0 +1,212 @@
+diff --git a/python/sglang/srt/sampling/sampling_batch_info.py b/python/sglang/srt/sampling/sampling_batch_info.py
+index fee776bd2b81..4e321362c105 100644
+--- a/python/sglang/srt/sampling/sampling_batch_info.py
++++ b/python/sglang/srt/sampling/sampling_batch_info.py
+@@ -102,6 +102,12 @@ class SamplingBatchInfo:
+     # Per-row top_k of mask requests (1 elsewhere); bounds the capture width.
+     sampling_mask_top_ks: Optional[List[int]] = None
+ 
++    # CPU per-row greedy flags (top_k <= 1). They let filter_batch recompute
++    # is_all_greedy / is_any_greedy without a device sync once rows leave the
++    # batch. None when the info was built without them; the two batch flags
++    # are then only combined on merge and never refreshed on filter.
++    greedy_rows: Optional[List[bool]] = None
++
+     watermark_keys: Optional[torch.Tensor] = None
+     watermark_context_windows: Optional[torch.Tensor] = None
+     watermark_enabled: Optional[torch.Tensor] = None
+@@ -284,14 +290,16 @@ def from_schedule_batch(cls, batch: ScheduleBatch, vocab_size: int):
+             },
+         )
+ 
++        greedy_rows = [r.sampling_params.top_k <= 1 for r in reqs]
+         ret = cls(
+             temperatures=temperatures,
+             top_ps=top_ps,
+             top_ks=top_ks,
+             min_ps=min_ps,
+             sampling_seed=sampling_seed,
+-            is_all_greedy=all(r.sampling_params.top_k <= 1 for r in reqs),
+-            is_any_greedy=any(r.sampling_params.top_k <= 1 for r in reqs),
++            is_all_greedy=all(greedy_rows),
++            is_any_greedy=any(greedy_rows),
++            greedy_rows=greedy_rows,
+             need_top_p_sampling=any(r.sampling_params.top_p != 1.0 for r in reqs),
+             need_top_k_sampling=any(r.sampling_params.top_k != TOP_K_ALL for r in reqs),
+             need_min_p_sampling=any(r.sampling_params.min_p > 0 for r in reqs),
+@@ -489,6 +497,14 @@ def filter_batch(self, keep_indices: List[int], keep_indices_device: torch.Tenso
+             ]
+             self.has_watermark_candidates = any(self.watermark_candidates_host)
+ 
++        if self.greedy_rows is not None:
++            # merge_batch can only clear is_all_greedy (and only set
++            # is_any_greedy), so refresh both here once the rows that changed
++            # them have left the batch.
++            self.greedy_rows = [self.greedy_rows[i] for i in keep_indices]
++            self.is_all_greedy = all(self.greedy_rows)
++            self.is_any_greedy = any(self.greedy_rows)
++
+         if self.logit_bias is not None:
+             self.logit_bias = self.logit_bias[keep_indices_device]
+         if self.return_sampling_masks is not None:
+@@ -630,6 +646,13 @@ def merge_batch(self, other: SamplingBatchInfo):
+             self.watermark_candidates_host.extend(other.watermark_candidates_host)
+             self.has_watermark_candidates = any(self.watermark_candidates_host)
+ 
++        # Build a new list rather than extend in place: copy_for_forward()
++        # copies share this list with the scheduler's info.
++        self.greedy_rows = (
++            self.greedy_rows + other.greedy_rows
++            if self.greedy_rows is not None and other.greedy_rows is not None
++            else None
++        )
+         self.is_all_greedy &= other.is_all_greedy
+         self.is_any_greedy |= other.is_any_greedy
+         self.need_top_p_sampling |= other.need_top_p_sampling
+diff --git a/test/registered/unit/sampling/test_sampling_batch_info.py b/test/registered/unit/sampling/test_sampling_batch_info.py
+index 0ab98310f3da..e821588cded0 100644
+--- a/test/registered/unit/sampling/test_sampling_batch_info.py
++++ b/test/registered/unit/sampling/test_sampling_batch_info.py
+@@ -46,6 +46,19 @@ def _make_info(batch_size=2, **overrides):
+     return SamplingBatchInfo(**defaults)
+ 
+ 
++def _make_greedy_info(greedy_rows, track_rows=True):
++    """Create a SamplingBatchInfo whose rows are greedy (top_k=1) or sampling."""
++    return _make_info(
++        batch_size=len(greedy_rows),
++        top_ks=torch.tensor(
++            [1 if greedy else TOP_K_ALL for greedy in greedy_rows], dtype=torch.int32
++        ),
++        is_all_greedy=all(greedy_rows),
++        is_any_greedy=any(greedy_rows),
++        greedy_rows=list(greedy_rows) if track_rows else None,
++    )
++
++
+ def _serial_batched_fill(entries, vocab_mask):
+     for entry in entries:
+         entry.grammar.fill_vocab_mask(vocab_mask, entry.row)
+@@ -670,6 +683,93 @@ def test_merge_with_both_sampling_seeds(self):
+         self.assertEqual(info1.sampling_seed[2].item(), 30)
+ 
+ 
++# is_all_greedy / is_any_greedy across merge_batch and filter_batch
++class TestGreedyFlags(CustomTestCase):
++    def test_filter_out_sampling_row_restores_all_greedy(self):
++        """A greedy row is all-greedy again once a merged sampling row leaves."""
++        info = _make_greedy_info([True])
++        info.merge_batch(_make_greedy_info([False]))
++        self.assertFalse(info.is_all_greedy)
++        self.assertTrue(info.is_any_greedy)
++
++        info.filter_batch([0], torch.tensor([0]))
++
++        self.assertEqual(info.greedy_rows, [True])
++        self.assertTrue(info.is_all_greedy)
++        self.assertTrue(info.is_any_greedy)
++
++    def test_all_greedy_batch_round_trip(self):
++        """All greedy -> a sampling row merges in -> it leaves -> all greedy."""
++        info = _make_greedy_info([True, True])
++        self.assertTrue(info.is_all_greedy)
++
++        info.merge_batch(_make_greedy_info([False]))
++        self.assertEqual(info.greedy_rows, [True, True, False])
++        self.assertFalse(info.is_all_greedy)
++
++        info.filter_batch([0, 1], torch.tensor([0, 1]))
++        self.assertEqual(info.greedy_rows, [True, True])
++        self.assertTrue(info.is_all_greedy)
++        self.assertTrue(info.is_any_greedy)
++
++    def test_filter_out_greedy_rows_clears_any_greedy(self):
++        """is_any_greedy goes back to False once the last greedy row leaves."""
++        info = _make_greedy_info([False, False])
++        info.merge_batch(_make_greedy_info([True]))
++        self.assertFalse(info.is_all_greedy)
++        self.assertTrue(info.is_any_greedy)
++
++        info.filter_batch([0, 1], torch.tensor([0, 1]))
++
++        self.assertEqual(info.greedy_rows, [False, False])
++        self.assertFalse(info.is_all_greedy)
++        self.assertFalse(info.is_any_greedy)
++
++    def test_merge_with_untracked_side_falls_back(self):
++        """When either side lacks per-row flags, merge combines the batch flags
++        as before and filter leaves them unchanged."""
++        for left_tracked, right_tracked in (
++            (True, False),
++            (False, True),
++            (False, False),
++        ):
++            with self.subTest(left_tracked=left_tracked, right_tracked=right_tracked):
++                info = _make_greedy_info([True, True], track_rows=left_tracked)
++                info.merge_batch(_make_greedy_info([False], track_rows=right_tracked))
++                self.assertIsNone(info.greedy_rows)
++                self.assertFalse(info.is_all_greedy)
++                self.assertTrue(info.is_any_greedy)
++
++                info.filter_batch([0, 1], torch.tensor([0, 1]))
++
++                self.assertIsNone(info.greedy_rows)
++                self.assertEqual(len(info), 2)
++                self.assertFalse(info.is_all_greedy)
++                self.assertTrue(info.is_any_greedy)
++
++    def test_filter_keeps_rows_aligned_with_keep_order(self):
++        """Per-row flags follow non-contiguous, reordered keep_indices."""
++        info = _make_greedy_info([True, False, True, False, True])
++
++        info.filter_batch([3, 0, 4], torch.tensor([3, 0, 4]))
++        self.assertEqual(info.greedy_rows, [False, True, True])
++        self.assertEqual(info.greedy_rows, [k <= 1 for k in info.top_ks.tolist()])
++        self.assertFalse(info.is_all_greedy)
++        self.assertTrue(info.is_any_greedy)
++
++        info.filter_batch([2, 1], torch.tensor([2, 1]))
++        self.assertEqual(info.greedy_rows, [True, True])
++        self.assertEqual(info.greedy_rows, [k <= 1 for k in info.top_ks.tolist()])
++        self.assertTrue(info.is_all_greedy)
++
++        info.merge_batch(_make_greedy_info([False, True]))
++        info.filter_batch([2, 0], torch.tensor([2, 0]))
++        self.assertEqual(info.greedy_rows, [False, True])
++        self.assertEqual(info.greedy_rows, [k <= 1 for k in info.top_ks.tolist()])
++        self.assertFalse(info.is_all_greedy)
++        self.assertTrue(info.is_any_greedy)
++
++
+ # copy_for_forward
+ class TestCopyForForward(CustomTestCase):
+     def test_returns_copy_without_orchestrator(self):
+@@ -755,6 +855,28 @@ def test_greedy_detection(self):
+         info = SamplingBatchInfo.from_schedule_batch(batch, VOCAB_SIZE)
+         self.assertTrue(info.is_all_greedy)
+ 
++    def test_greedy_flags_refresh_after_sampling_request_finishes(self):
++        """A sampling request that joins a greedy decode batch and finishes
++        must not leave the remaining greedy rows on the sampling path."""
++        running = MagicMock()
++        running.reqs = [self._make_req(top_k=1), self._make_req(top_k=1)]
++        running.device = DEVICE
++        info = SamplingBatchInfo.from_schedule_batch(running, VOCAB_SIZE)
++        self.assertEqual(info.greedy_rows, [True, True])
++        self.assertTrue(info.is_all_greedy)
++
++        joining = MagicMock()
++        joining.reqs = [self._make_req(temp=0.7, top_k=TOP_K_ALL)]
++        joining.device = DEVICE
++        info.merge_batch(SamplingBatchInfo.from_schedule_batch(joining, VOCAB_SIZE))
++        self.assertEqual(info.greedy_rows, [True, True, False])
++        self.assertFalse(info.is_all_greedy)
++
++        info.filter_batch([0, 1], torch.tensor([0, 1]))
++        self.assertEqual(info.greedy_rows, [True, True])
++        self.assertTrue(info.is_all_greedy)
++        self.assertTrue(info.is_any_greedy)
++
+     def test_logit_bias_construction(self):
+         """Test that logit_bias dict is converted to a tensor with correct values."""
+ 

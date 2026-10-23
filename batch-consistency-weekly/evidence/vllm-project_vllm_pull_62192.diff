@@ -1,0 +1,230 @@
+diff --git a/.buildkite/test_areas/misc.yaml b/.buildkite/test_areas/misc.yaml
+index 29e0582ec571..11ca3d317233 100644
+--- a/.buildkite/test_areas/misc.yaml
++++ b/.buildkite/test_areas/misc.yaml
+@@ -745,6 +745,7 @@ steps:
+     - vllm/lora/ops/triton_ops
+     - vllm/model_executor/kernels/linear
+     - vllm/model_executor/determinism
++    - vllm/utils/flashinfer.py
+     - tests/v1/determinism/
+   commands:
+     - export VLLM_WORKER_MULTIPROC_METHOD=spawn
+diff --git a/tests/v1/determinism/test_matmul_batch_invariant.py b/tests/v1/determinism/test_matmul_batch_invariant.py
+index b6ea1648f398..03180212ba4a 100644
+--- a/tests/v1/determinism/test_matmul_batch_invariant.py
++++ b/tests/v1/determinism/test_matmul_batch_invariant.py
+@@ -109,9 +109,14 @@ def test_matmul_batch_invariance(dtype):
+ 
+ 
+ @skip_unsupported
+-@pytest.mark.parametrize("m", [8, 32, 256, 2048])
++@pytest.mark.parametrize("m", [8, 32, 64, 256, 2048, 4096])
+ @pytest.mark.parametrize("transpose_b", [False, True], ids=["contiguous", "transposed"])
+-def test_matmul_batch_invariance_across_tuned_m_buckets(m, transpose_b):
++@pytest.mark.parametrize(
++    "n,k",
++    [(2048, 2048), (4608, 2688), (2688, 4096)],
++    ids=["2048x2048", "nemotron_h_qkv", "nemotron_h_o_proj"],
++)
++def test_matmul_batch_invariance_across_tuned_m_buckets(m, transpose_b, n, k):
+     # Tuned M buckets must preserve each row's K-reduction order.
+     capability = (
+         current_platform.get_device_capability() if current_platform.is_cuda() else None
+@@ -121,7 +126,6 @@ def test_matmul_batch_invariance_across_tuned_m_buckets(m, transpose_b):
+         pytest.skip("No tuned persistent matmul config for this architecture")
+ 
+     device = torch.device(DEVICE_TYPE)
+-    n = k = 2048
+     torch.manual_seed(42)
+     a = torch.rand((m, k), dtype=torch.bfloat16, device=device)
+     if transpose_b:
+@@ -130,9 +134,11 @@ def test_matmul_batch_invariance_across_tuned_m_buckets(m, transpose_b):
+         b = torch.rand((k, n), dtype=torch.bfloat16, device=device)
+ 
+     single_output = matmul_batch_invariant(a[:1], b)
++    half_output = matmul_batch_invariant(a[: m // 2], b)
+     batch_output = matmul_batch_invariant(a, b)
+ 
+     assert torch.equal(single_output[0], batch_output[0])
++    assert torch.equal(half_output, batch_output[: m // 2])
+ 
+ 
+ @pytest.fixture
+diff --git a/vllm/model_executor/determinism/batch_invariant.py b/vllm/model_executor/determinism/batch_invariant.py
+index e4b04793feed..afd941b10b75 100644
+--- a/vllm/model_executor/determinism/batch_invariant.py
++++ b/vllm/model_executor/determinism/batch_invariant.py
+@@ -223,7 +223,10 @@ def matmul_kernel_descriptor_persistent(
+ 
+ 
+ def matmul_descriptor_persistent(
+-    a: torch.Tensor, b: torch.Tensor, bias: torch.Tensor | None = None
++    a: torch.Tensor,
++    b: torch.Tensor,
++    bias: torch.Tensor | None = None,
++    out_dtype: torch.dtype | None = None,
+ ) -> torch.Tensor:
+     """Persistent matmul using tensor descriptors (Intel XPU fast path).
+ 
+@@ -231,9 +234,11 @@ def matmul_descriptor_persistent(
+         a: Input matrix [M, K], must be contiguous.
+         b: Weight matrix [K, N] (standard layout — transposed internally).
+         bias: Optional 1D bias vector [N].
++        out_dtype: Output dtype; defaults to the input dtype. The FP32
++            accumulator is rounded to it once, in the epilogue.
+ 
+     Returns:
+-        Output matrix [M, N] with dtype matching the inputs.
++        Output matrix [M, N].
+ 
+     """
+     assert a.shape[1] == b.shape[0], "Incompatible dimensions"
+@@ -249,7 +254,7 @@ def matmul_descriptor_persistent(
+     # Descriptor kernel expects B in [N, K] layout (K-contiguous).
+     b_t = b.t().contiguous()
+ 
+-    c = torch.empty((M, N), device=a.device, dtype=dtype)
++    c = torch.empty((M, N), device=a.device, dtype=out_dtype or dtype)
+     # This path is XPU-only. _NUM_SMS is set by enable_batch_invariant_mode()
+     # before torch.compile traces this function, so Dynamo can lift it
+     # as a compile-time constant.
+@@ -282,7 +287,10 @@ def grid(META):
+ 
+ 
+ def matmul_persistent(
+-    a: torch.Tensor, b: torch.Tensor, bias: torch.Tensor | None = None
++    a: torch.Tensor,
++    b: torch.Tensor,
++    bias: torch.Tensor | None = None,
++    out_dtype: torch.dtype | None = None,
+ ):
+     # Check constraints.
+     assert a.shape[1] == b.shape[0], "Incompatible dimensions"
+@@ -294,8 +302,9 @@ def matmul_persistent(
+     M, K = a.shape
+     K, N = b.shape
+     dtype = a.dtype
+-    # Allocates output.
+-    c = torch.empty((M, N), device=a.device, dtype=dtype)
++    # The tile config follows the input dtype; out_dtype only changes the
++    # epilogue cast of the FP32 accumulator.
++    c = torch.empty((M, N), device=a.device, dtype=out_dtype or dtype)
+ 
+     # 1D launch kernel where each block gets its own program.
+     def grid(META):
+@@ -769,13 +778,13 @@ def mean_dim(
+     return output
+ 
+ 
+-def mm_batch_invariant(a, b, bias=None):
++def mm_batch_invariant(a, b, bias=None, out_dtype=None):
+     if a.device.type == "xpu":
+         # The descriptor kernel reads the bias at unit stride.
+         if bias is not None:
+             bias = bias.contiguous()
+-        return matmul_descriptor_persistent(a, b, bias=bias)
+-    return matmul_persistent(a, b, bias=bias)
++        return matmul_descriptor_persistent(a, b, bias=bias, out_dtype=out_dtype)
++    return matmul_persistent(a, b, bias=bias, out_dtype=out_dtype)
+ 
+ 
+ def matmul_batch_invariant(a, b, *, out=None):
+diff --git a/vllm/model_executor/determinism/batch_invariant_configs.py b/vllm/model_executor/determinism/batch_invariant_configs.py
+index 4fff768c1fae..71f13fd2c5fc 100644
+--- a/vllm/model_executor/determinism/batch_invariant_configs.py
++++ b/vllm/model_executor/determinism/batch_invariant_configs.py
+@@ -253,6 +253,15 @@ class _MatmulShapeConfig(NamedTuple):
+                 (2048, _MatmulMConfig(128, 128, 8, 3)),
+             ),
+         ),
++        # Nemotron-H qkv_proj and o_proj; one bucket, picked at trace time.
++        (4608, 2688): _MatmulShapeConfig(
++            block_k=64,
++            m_buckets=((2048, _MatmulMConfig(64, 256, 4, 5)),),
++        ),
++        (2688, 4096): _MatmulShapeConfig(
++            block_k=64,
++            m_buckets=((2048, _MatmulMConfig(64, 256, 4, 5)),),
++        ),
+     },
+     "sm120": {
+         (12288, 2048): _MatmulShapeConfig(  # Qwen3-1.7B gate_up_proj
+diff --git a/vllm/model_executor/kernels/linear/__init__.py b/vllm/model_executor/kernels/linear/__init__.py
+index ec3059ea7f7e..c9463ef75eb1 100644
+--- a/vllm/model_executor/kernels/linear/__init__.py
++++ b/vllm/model_executor/kernels/linear/__init__.py
+@@ -1148,7 +1148,15 @@ def init_nvfp4_linear_kernel(use_a16: bool = False) -> NvFp4LinearKernel:
+     force_kernel: type[NvFp4LinearKernel] | None = None
+     quantization = "nvfp4_w4a16" if use_a16 else "nvfp4_w4a4"
+     linear_backend = _get_linear_backend(quantization=quantization)
+-    if envs.VLLM_BATCH_INVARIANT:
++    if envs.VLLM_BATCH_INVARIANT and use_a16:
++        if linear_backend not in ("auto", "humming"):
++            logger.warning_once(
++                "VLLM_BATCH_INVARIANT overrides --linear-backend=%s; using the "
++                "Humming backend for deterministic W4A16 execution.",
++                linear_backend,
++            )
++        force_kernel = HummingNvFp4LinearKernel
++    elif envs.VLLM_BATCH_INVARIANT:
+         bi_supported, reason = CutlassNvFp4LinearKernel.is_supported()
+         if bi_supported:
+             if linear_backend not in ("auto", "cutlass"):
+diff --git a/vllm/model_executor/layers/fused_moe/router/gate_linear.py b/vllm/model_executor/layers/fused_moe/router/gate_linear.py
+index c6b1da890bbe..cb82c37b1c5d 100644
+--- a/vllm/model_executor/layers/fused_moe/router/gate_linear.py
++++ b/vllm/model_executor/layers/fused_moe/router/gate_linear.py
+@@ -7,6 +7,7 @@
+ import vllm.envs as envs
+ from vllm.logger import init_logger
+ from vllm.model_executor.custom_op import PluggableLayer
++from vllm.model_executor.determinism.batch_invariant import mm_batch_invariant
+ from vllm.model_executor.layers.linear import (
+     ReplicatedLinear,
+     UnquantizedLinearMethod,
+@@ -347,6 +348,18 @@ def forward(
+                 output = torch.mm(x, self.weight.T, out_dtype=torch.float32)
+             return self._return(output)
+ 
++        # Batch invariant: the specialized tiers are off, and F.linear would
++        # round the logits to the weight dtype first. One persistent matmul
++        # with FP32 out keeps a single K order at every M.
++        if (
++            envs.VLLM_BATCH_INVARIANT
++            and self._router_gemm_no_bias
++            and self.out_dtype == torch.float32
++            and x.dtype == self.weight.dtype == torch.bfloat16
++        ):
++            output = mm_batch_invariant(x, self.weight.T, out_dtype=torch.float32)
++            return self._return(output)
++
+         # Tier 7: F.linear (ReplicatedLinear)
+         if (
+             self.out_dtype is not None
+diff --git a/vllm/utils/flashinfer.py b/vllm/utils/flashinfer.py
+index 69401febea96..ed77a9efbfe2 100644
+--- a/vllm/utils/flashinfer.py
++++ b/vllm/utils/flashinfer.py
+@@ -1115,6 +1115,12 @@ def flashinfer_scaled_fp4_mm(
+     )
+ 
+ 
++def _bmm_fp8_backend() -> str:
++    # "auto" may pick a different backend per problem shape, so a row's
++    # result could depend on the number of rows. Pin one backend under BI.
++    return "cutlass" if envs.VLLM_BATCH_INVARIANT else "auto"
++
++
+ def flashinfer_scaled_fp8_mm(
+     a: torch.Tensor,
+     b: torch.Tensor,
+@@ -1137,7 +1143,7 @@ def flashinfer_scaled_fp8_mm(
+         scale_a,
+         scale_b,
+         out_dtype,
+-        "auto",
++        _bmm_fp8_backend(),
+     ).view(a.shape[0], b.shape[1])
+ 
+     if bias is not None:

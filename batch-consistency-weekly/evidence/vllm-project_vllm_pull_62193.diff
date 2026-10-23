@@ -1,0 +1,149 @@
+diff --git a/tests/kernels/moe/test_batch_invariance_exempt.py b/tests/kernels/moe/test_batch_invariance_exempt.py
+new file mode 100644
+index 000000000000..4449fce62290
+--- /dev/null
++++ b/tests/kernels/moe/test_batch_invariance_exempt.py
+@@ -0,0 +1,57 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++"""batch_invariance_exempt() lifts the batch-invariance requirement on MoE
++experts selection, e.g. for a speculative drafter."""
++
++import pytest
++
++import vllm.envs as envs
++from tests.kernels.moe.utils import make_dummy_moe_config
++from vllm.model_executor.determinism.scope import (
++    batch_invariance_exempt,
++    requires_batch_invariant_kernels,
++)
++from vllm.model_executor.layers.fused_moe import modular_kernel as mk
++from vllm.model_executor.layers.fused_moe.experts.triton_moe import TritonExperts
++from vllm.platforms import current_platform
++
++
++class _NonInvariantTritonExperts(TritonExperts):
++    @staticmethod
++    def _supports_batch_invariance() -> bool:
++        return False
++
++
++def test_exempt_scope_only_lifts_the_requirement_inside(monkeypatch):
++    monkeypatch.setattr(envs, "VLLM_BATCH_INVARIANT", True)
++    assert requires_batch_invariant_kernels()
++    with batch_invariance_exempt():
++        assert not requires_batch_invariant_kernels()
++        with batch_invariance_exempt():
++            assert not requires_batch_invariant_kernels()
++        assert not requires_batch_invariant_kernels()
++    assert requires_batch_invariant_kernels()
++
++    monkeypatch.setattr(envs, "VLLM_BATCH_INVARIANT", False)
++    assert not requires_batch_invariant_kernels()
++
++
++@pytest.mark.skipif(not current_platform.is_cuda(), reason="TritonExperts on CUDA")
++def test_exempt_scope_accepts_experts_without_batch_invariance(monkeypatch):
++    monkeypatch.setattr(envs, "VLLM_BATCH_INVARIANT", True)
++    config = make_dummy_moe_config(
++        num_experts=8, experts_per_token=2, hidden_dim=256, intermediate_size=512
++    )
++
++    def check(cls):
++        return cls.is_supported_config(
++            cls, config, None, None, mk.FusedMoEActivationFormat.Standard
++        )
++
++    assert check(TritonExperts) == (True, None)
++    supported, reason = check(_NonInvariantTritonExperts)
++    assert not supported
++    assert "batch invariance" in reason
++    with batch_invariance_exempt():
++        assert check(_NonInvariantTritonExperts) == (True, None)
++        assert check(TritonExperts) == (True, None)
+diff --git a/vllm/model_executor/determinism/scope.py b/vllm/model_executor/determinism/scope.py
+new file mode 100644
+index 000000000000..7d1b1f16fe20
+--- /dev/null
++++ b/vllm/model_executor/determinism/scope.py
+@@ -0,0 +1,34 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++"""Which modules must be built from batch-invariant kernels."""
++
++from collections.abc import Iterator
++from contextlib import contextmanager
++from contextvars import ContextVar
++
++import vllm.envs as envs
++
++_exempt: ContextVar[bool] = ContextVar("batch_invariance_exempt", default=False)
++
++
++@contextmanager
++def batch_invariance_exempt() -> Iterator[None]:
++    """Build modules that need not be batch invariant, e.g. a speculative
++    drafter: its tokens are only proposals, and the target's verification,
++    which is batch invariant, decides every output token and logprob."""
++    token = _exempt.set(True)
++    try:
++        yield
++    finally:
++        _exempt.reset(token)
++
++
++def requires_batch_invariant_kernels() -> bool:
++    """Whether kernels chosen now must be batch invariant.
++
++    Today only the modular MoE experts selection consults this, and only the
++    model runner V2 EAGLE/MTP drafter is built inside
++    :func:`batch_invariance_exempt`; other batch-invariant kernel choices still
++    read ``VLLM_BATCH_INVARIANT`` directly.
++    """
++    return envs.VLLM_BATCH_INVARIANT and not _exempt.get()
+diff --git a/vllm/model_executor/layers/fused_moe/modular_kernel.py b/vllm/model_executor/layers/fused_moe/modular_kernel.py
+index fccbd1a9d83b..2ce72437dcbc 100644
+--- a/vllm/model_executor/layers/fused_moe/modular_kernel.py
++++ b/vllm/model_executor/layers/fused_moe/modular_kernel.py
+@@ -9,8 +9,8 @@
+ 
+ import torch
+ 
+-import vllm.envs as envs
+ from vllm.logger import init_logger
++from vllm.model_executor.determinism.scope import requires_batch_invariant_kernels
+ from vllm.model_executor.layers.fused_moe.activation import (
+     ApplyMoEActivationConfig,
+     MoEActivation,
+@@ -604,7 +604,9 @@ def _make_reason(reason: str) -> str:
+             )
+         elif activation_format != cls.activation_format():
+             return False, _make_reason(f"{activation_format.value} activation format")
+-        elif envs.VLLM_BATCH_INVARIANT and not cls._supports_batch_invariance():
++        elif (
++            requires_batch_invariant_kernels() and not cls._supports_batch_invariance()
++        ):
+             return False, _make_reason("batch invariance")
+         elif moe_config.is_lora_enabled and not cls.supports_lora():
+             return False, _make_reason("LoRA")
+diff --git a/vllm/v1/worker/gpu/spec_decode/eagle/utils.py b/vllm/v1/worker/gpu/spec_decode/eagle/utils.py
+index 63e999b75fbf..fa19c5bb811f 100644
+--- a/vllm/v1/worker/gpu/spec_decode/eagle/utils.py
++++ b/vllm/v1/worker/gpu/spec_decode/eagle/utils.py
+@@ -6,6 +6,7 @@
+ from vllm.config import VllmConfig, replace
+ from vllm.distributed.parallel_state import get_pp_group
+ from vllm.lora.layers.base import BaseLayerWithLoRA
++from vllm.model_executor.determinism.scope import batch_invariance_exempt
+ from vllm.model_executor.layers.quantization.online.lm_head import (
+     quantized_lm_head_copy,
+ )
+@@ -89,7 +90,7 @@ def load_eagle_model(target_model: nn.Module, vllm_config: VllmConfig) -> nn.Mod
+     )
+     if draft_load_config is not vllm_config.load_config:
+         vllm_config = replace(vllm_config, load_config=draft_load_config)
+-    with set_model_tag("eagle_head"):
++    with set_model_tag("eagle_head"), batch_invariance_exempt():
+         eagle_model = get_model(
+             vllm_config=vllm_config, model_config=draft_model_config
+         )

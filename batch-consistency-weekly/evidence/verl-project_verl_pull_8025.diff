@@ -1,0 +1,115 @@
+diff --git a/tests/trainer/ppo/v1/test_metrics_aggregator_on_cpu.py b/tests/trainer/ppo/v1/test_metrics_aggregator_on_cpu.py
+index c788426d640..f0aafdbe83f 100644
+--- a/tests/trainer/ppo/v1/test_metrics_aggregator_on_cpu.py
++++ b/tests/trainer/ppo/v1/test_metrics_aggregator_on_cpu.py
+@@ -111,6 +111,14 @@ def test_rollout_probs_diff_valid_keeps_last():
+     assert agg.get_aggregated_metrics()["training/rollout_probs_diff_valid"] == 0
+ 
+ 
++def test_rollout_logprobs_mismatch_count_sums():
++    # a token count: the gate needs the total over the aggregation window, not the mean per iteration.
++    agg = MetricsAggregator()
++    agg.add_step_metrics({"training/rollout_logprobs_mismatch_count": 0})
++    agg.add_step_metrics({"training/rollout_logprobs_mismatch_count": 3})
++    assert agg.get_aggregated_metrics()["training/rollout_logprobs_mismatch_count"] == 3
++
++
+ def test_global_seqlen_minmax_diff_is_recomputed_from_aggregated_min_max():
+     # minmax_diff must be recomputed as (aggregated max - aggregated min), not reduced by the
+     # "max" substring heuristic over the per-iteration diffs.
+diff --git a/tests/utils/debug/test_metrics.py b/tests/utils/debug/test_metrics.py
+index 1b2f7f8faa1..5810b923fed 100644
+--- a/tests/utils/debug/test_metrics.py
++++ b/tests/utils/debug/test_metrics.py
+@@ -42,6 +42,39 @@ def test_calculate_debug_metrics(self):
+         metrics = calculate_debug_metrics(data)
+         print(metrics)
+         assert metrics["training/rollout_probs_diff_valid"] == 1
++        assert metrics["training/rollout_logprobs_mismatch_count"] == 20
++        assert metrics["training/rollout_logprobs_diff_max"] > 0
++
++    def test_one_ulp_logprob_difference_is_hidden_by_probs_diff(self):
++        rollout = torch.tensor([[-0.10000000149, -2.0, -0.5]], dtype=torch.float32)
++        actor = torch.tensor([[-0.10000000894, -2.0, -0.75]], dtype=torch.float32)
++        assert torch.exp(rollout[0, 0]) == torch.exp(actor[0, 0])
++        data = DataProto.from_dict(
++            {
++                "rollout_log_probs": rollout,
++                "old_log_probs": actor,
++                "response_mask": torch.tensor([[1, 1, 0]]),
++                "responses": torch.zeros((1, 3)),
++            }
++        )
++        metrics = calculate_debug_metrics(data)
++        assert metrics["training/rollout_probs_diff_max"] == 0
++        assert metrics["training/rollout_logprobs_mismatch_count"] == 1
++        assert metrics["training/rollout_logprobs_diff_max"] == (rollout[0, 0] - actor[0, 0]).abs().item()
++        assert metrics["training/rollout_logprobs_diff_mean"] == metrics["training/rollout_logprobs_diff_max"] / 2
++
++    def test_all_masked_returns_invalid(self):
++        data = DataProto.from_dict(
++            {
++                "rollout_log_probs": torch.tensor([[-1.0, -2.0]]),
++                "old_log_probs": torch.tensor([[-1.5, -2.0]]),
++                "response_mask": torch.tensor([[0, 0]]),
++                "responses": torch.zeros((1, 2)),
++            }
++        )
++        metrics = calculate_debug_metrics(data)
++        assert metrics["training/rollout_probs_diff_valid"] == 0
++        assert metrics["training/rollout_logprobs_mismatch_count"] == 0
+ 
+ 
+ if __name__ == "__main__":
+diff --git a/verl/trainer/ppo/v1/utils.py b/verl/trainer/ppo/v1/utils.py
+index e9dec3134a3..f0d85abda25 100644
+--- a/verl/trainer/ppo/v1/utils.py
++++ b/verl/trainer/ppo/v1/utils.py
+@@ -47,6 +47,7 @@ def _init_aggregation_rules(self) -> dict[str, list[str]]:
+                 "validation/filter_groups/discarded_surplus_samples",
+                 "training/rollout_failure/evicted_samples",
+                 "validation/rollout_failure/evicted_samples",
++                "training/rollout_logprobs_mismatch_count",
+             ],
+             "last": [
+                 "training/global_step",
+diff --git a/verl/utils/debug/metrics.py b/verl/utils/debug/metrics.py
+index 706a7f97d55..f3d7e0ad2de 100644
+--- a/verl/utils/debug/metrics.py
++++ b/verl/utils/debug/metrics.py
+@@ -78,6 +78,10 @@ def calculate_debug_metrics(data: DataProto) -> dict:
+             "training/rollout_probs_diff_mean": mean value of logprob diff of rollout vs. actor
+             "training/rollout_probs_diff_std": std value of logprob diff of rollout vs. actor
+             "training/rollout_actor_probs_pearson_corr": logprob's pearson corrcoef of rollout vs. actor, reference to https://arxiv.org/pdf/2506.13585
++            "training/rollout_logprobs_mismatch_count": number of valid tokens whose raw logprobs differ
++            "training/rollout_logprobs_diff_max": max value of raw logprob diff of rollout vs. actor
++            "training/rollout_logprobs_diff_mean": mean value of raw logprob diff of rollout vs. actor
++        The probs_diff metrics compare exp(logprob) and miss 1-ULP logprob differences; the logprobs metrics do not.
+     """
+ 
+     rollout_old_log_probs = data.batch["rollout_log_probs"]
+@@ -108,14 +112,24 @@ def calculate_debug_metrics(data: DataProto) -> dict:
+             "training/rollout_probs_diff_mean": float("nan"),
+             "training/rollout_probs_diff_std": float("nan"),
+             "training/rollout_actor_probs_pearson_corr": float("nan"),
++            "training/rollout_logprobs_mismatch_count": 0,
++            "training/rollout_logprobs_diff_max": float("nan"),
++            "training/rollout_logprobs_diff_mean": float("nan"),
+         }
+ 
+     pearson_corrcoef = pearson_correlation_coefficient(actor_probs, rollout_probs, response_mask_bool)
+     rollout_probs_diff = calculate_log_prob_diff(actor_probs, rollout_probs, response_mask_bool)
++    rollout_logprobs_diff = calculate_log_prob_diff(
++        actor_old_log_probs.float(), rollout_old_log_probs.float(), response_mask_bool
++    )
++    logprobs_mismatch = torch.masked_select(actor_old_log_probs != rollout_old_log_probs, response_mask_bool)
+     return {
+         "training/rollout_probs_diff_valid": 1,
+         "training/rollout_probs_diff_max": torch.max(rollout_probs_diff).detach().item(),
+         "training/rollout_probs_diff_mean": torch.mean(rollout_probs_diff).detach().item(),
+         "training/rollout_probs_diff_std": torch.std(rollout_probs_diff).detach().item(),
+         "training/rollout_actor_probs_pearson_corr": pearson_corrcoef,
++        "training/rollout_logprobs_mismatch_count": int(logprobs_mismatch.sum().item()),
++        "training/rollout_logprobs_diff_max": torch.max(rollout_logprobs_diff).detach().item(),
++        "training/rollout_logprobs_diff_mean": torch.mean(rollout_logprobs_diff).detach().item(),
+     }
