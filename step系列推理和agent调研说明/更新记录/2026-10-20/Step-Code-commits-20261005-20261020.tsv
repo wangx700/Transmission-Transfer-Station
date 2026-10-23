@@ -1,0 +1,92 @@
+commit_sha	committed_at_with_timezone	subject
+be88ee77071188975475bcb5ef4e1edd0913d8ad	2026-10-20T19:49:54+08:00	feat(tui): show terminal tab status and simplify tool errors (#274)
+e08c6dd21310e75b296597d22910094fc786ccd6	2026-10-20T17:13:56+08:00	docs(contributing): add project contribution guide (#273)
+999dcaeee51c2e09761f3c6ddeafc6c896716502	2026-10-20T16:47:25+08:00	feat(cli): add /btw for one-shot side questions (#268)
+67a44cd58234ac50376334aa7dbe4a2e5e18b7ab	2026-10-20T15:36:48+08:00	fix(step): resolve update archive root for flat Windows zips (#271)
+d695456854d4214ee4c5343f765c90cfa00a4d39	2026-10-20T14:49:49+08:00	feat(coding-agent): connect terminal sessions to Lark with mirrored approvals (#260)
+daeeb75336011b34602cb37c71f3003d28409e37	2026-10-20T14:49:04+08:00	feat(cli): show recent models in the model selector (#259)
+325f63cec985b8ad9e67d40adc848293d0f19a76	2026-10-19T21:07:48+08:00	Merge pull request #267 from stepfun-ai/fix/stable-live-context-notices
+c26c5883a26a59df7a98687d059da65b9e9f57ed	2026-10-19T20:43:52+08:00	fix(context): retain live-context notices across append-only turns
+32c23a94b2eb09f6f4bc9866aed91e23dea280ec	2026-10-19T20:09:48+08:00	Merge pull request #265 from stepfun-ai/docs/remove-upstream-residue
+76f87d965b107e8fb08c86493d9d6a00e14ef981	2026-10-19T20:00:38+08:00	docs: generate Step Agent telemetry reference and assert its title
+14ac5ff14f1237193e3f33a6d24c168e4353150e	2026-10-19T19:57:50+08:00	docs: keep generated telemetry reference consistent with generator
+91dbfd95288ef8325728d9e7951a8c4715f3bacc	2026-10-19T19:38:34+08:00	feat(coding-agent): add SQLite session search index (#266)
+7b7c2d1dcee73752b29f0953ce56e4f1b514f4bf	2026-10-19T19:14:38+08:00	feat(step): store and refresh an account session beside the API key (#261)
+777579f74a018d54a9daa553451d66761d7757ce	2026-10-19T18:48:12+08:00	docs: keep extension snippets on the real `pi` factory parameter
+1ec2b42b8c1aac2aec8ec96500708feb51b571e5	2026-10-19T18:39:41+08:00	docs: replace residual upstream pi branding with step naming
+5d97c7dabb6ae277946ffb1c05e770837f50843d	2026-10-19T17:21:01+08:00	docs: remove upstream Discord and pi branding from contributor docs
+d557c8cdccc71c5f20a5890b6f3d17236a8b9859	2026-10-19T16:38:18+08:00	Merge pull request #262 from stepfun-ai/remove-discord
+c03501c7c3035d7474dc04742de6283b1846b36a	2026-10-19T16:29:18+08:00	remove
+b5dbed938d9ae589397cf522dcf2ff89ecf4c494	2026-10-16T11:39:00+08:00	feat: add tool availability and standalone task review (#242)
+d71175e96d3dd7fc402da231e9d67bf4ca366e64	2026-10-16T11:35:32+08:00	Merge pull request #251 from stepfun-ai/feature/usage-overview-account
+ff24448a21afb766fae4075902a1de5534919e37	2026-10-16T00:12:39+08:00	fix(auth): guide accounts without a plan to API-key login
+1a5e2a9564e41d9cc75be18eefdc77d5e26a14cb	2026-10-15T22:58:15+08:00	fix(usage): simplify quota display and reduce bar height
+30c2b1062f124d8d153205f2317a0f226eb3f049	2026-10-15T22:34:55+08:00	fix(usage): clarify quota percentages and heatmap colors
+dcf18f2fdd8734c41dd8b567eaa9f4833bcae723	2026-10-15T19:48:06+08:00	fix(cli): mount usage and status in the editor area
+e32c196b4a3cc884744fdfebc676398be168fe44	2026-10-15T19:27:19+08:00	refactor(usage): reuse session totals and isolate activity recording
+d85539e775aad5645bcaea2448237d3aed3a8243	2026-10-15T19:27:19+08:00	test(mcp): await tool publication after StepPage preparation
+fab3353e4d7d774ec384dc1979396f14e0ef8d13	2026-10-15T19:27:18+08:00	build(usage): package activity workers and document usage
+fe822c303e3489dfaa62466525dd547220fae758	2026-10-15T19:27:18+08:00	test(usage): cover activity and quota lifecycle regressions
+0a3dc7464de4fb824a30ab76b75ffd65ad6e2d31	2026-10-15T19:27:18+08:00	feat(cli): add usage and status terminal panels
+6b5b310ca6a99a3cb513d7fa1a9eaf68f9e58448	2026-10-15T19:27:18+08:00	feat(usage): register usage and status command lifecycles
+19917d9625229def8d6d672e2a882f375a46baab	2026-10-15T19:27:18+08:00	feat(usage): query personal plan quota with guarded caching
+b454240973f7ff4a4ff5c8203aac85c2a4a3bf6b	2026-10-15T19:27:18+08:00	feat(usage): scan local activity with a rebuildable cache
+7b6324b44a1c477a2944b18f2e4b1c718e91e0e2	2026-10-15T19:27:18+08:00	feat(usage): record request and resource provenance
+784073a479c530d10a71fc999f5896cd4873a1c2	2026-10-15T19:27:18+08:00	feat(usage): unify session totals and preserve fork lineage
+d0ec996df81f4089054f2cc80f1ae11139761f81	2026-10-15T17:21:30+08:00	Merge pull request #254 from stepfun-ai/chore/fixed-internal-pr-reviews
+4a459396d413ef632f58fa07a1516be4a63d561a	2026-10-15T16:03:56+08:00	chore: define fixed internal pull request reviews
+396dbcee0b60ecac006d953f42a921915a4f67de	2026-10-15T14:04:41+08:00	Merge pull request #252 from stepfun-ai/fix/stepfun-system-role
+58c7c8914a461d51048583f1167268bad7cbf130	2026-10-15T11:22:10+08:00	Merge pull request #250 from stepfun-ai/docs/complete-module-agent-guidelines
+5049c68a8c58a1af037a2f95540f33819a3a2c5d	2026-10-15T11:20:49+08:00	fix: always use system messages for StepFun chat models
+a90bfa5feb775d6bcf905bea1bb2b3c8787986c2	2026-10-15T11:05:05+08:00	docs: standardize English commits and pull request reviews
+b38fc6e32d07ae50b5345b29e7ea6ea15d69a1b5	2026-10-15T11:05:05+08:00	docs: map repository structure and engineering rules
+116686d993fda769f2f62a9f5709f0947956690a	2026-10-15T11:05:00+08:00	docs: define development and testing practices
+7a0382b41e878409652a4306d0c95c72d7370247	2026-10-14T18:06:47+08:00	fix: route then_run through run_command (#248)
+adcd672ace19bc00e54a845fefd71a0092f648ae	2026-10-14T18:02:29+08:00	fix: harden workflow lifecycle, concurrency, and retries with structured errors (#249)
+976a534e5f3fa60c1e04e3be6bfdf5826ff4afd0	2026-10-14T17:27:23+08:00	docs: establish repository and support directory guidelines
+f5da5f9284c95a71acc61fab536687794da55900	2026-10-14T17:27:23+08:00	docs: document CLI hosting and UI layer responsibilities
+a5d81cc4476e7e9e18aba1dfe128b3a2bf5d7876	2026-10-14T17:27:23+08:00	docs: define agent runtime and coding product boundaries
+1bbb1a0f673df0db556ea45dd571a58e1b59002e	2026-10-14T17:27:23+08:00	docs: add guidelines for platform and provider packages
+3ba89e0cbfe6be78cccdafb5aeafd2592177cbb8	2026-10-12T15:29:41+08:00	Merge pull request #246 from stepfun-ai/fix/skill-collision-noise
+96928c0e3b5fb5b4144965c668f97653b29ee8cd	2026-10-12T15:17:56+08:00	Merge branch 'main' into fix/skill-collision-noise
+579772281f26ab37d839c3b76c1ac12395620225	2026-10-12T15:04:06+08:00	feat: persist Ultracode mode per session (#245)
+77f562db1a90d94b5eb713a8c0cf3cf53c55733b	2026-10-12T14:57:47+08:00	fix(skills): quiet startup skill conflicts for duplicated shared skill dirs
+b4ce5a0ca628d3b0be7059a07ab2a75cc5b85bc8	2026-10-12T12:28:39+08:00	Merge pull request #243 from stepfun-ai/fix/windows-native-bash-discovery
+ca1bff569d07dfc27c39b057b7152fb55abce2ae	2026-10-12T12:11:04+08:00	Merge pull request #244 from stepfun-ai/fix/skill-frontmatter-diagnostics
+b84d7e82f1e850cc729c17dc20cf1bd39569f523	2026-10-12T12:05:17+08:00	fix: stop repeating Ultracode capability reminders (#241)
+ede9279b1b2fab4037c533e3f8d7837338fbd90b	2026-10-12T11:59:27+08:00	fix(skills): make frontmatter diagnostic hints syntax-aware
+32af6e66183e3a997f843fa7f5907c111da49196	2026-10-12T11:59:27+08:00	fix(skills): emit readable single-line diagnostics for SKILL.md frontmatter errors
+75b9e26838dcc2f567cc43650028f4fecc7debde	2026-10-12T11:47:14+08:00	fix(shell): use Git Bash child PATH for config value commands
+5a17a30e95bad9b805ddd0a405aa238af747aa8b	2026-10-12T11:07:33+08:00	fix(shell): discover native Git Bash on Windows instead of WSL
+bd42141a2077bba8db7cef942929b1fe758a5ce4	2026-10-11T12:04:08+08:00	Merge pull request #232 from stepfun-ai/feat/clm-default-compaction
+7d86143586f7b5d0458ffd5e4b90642d7c22459b	2026-10-11T12:02:10+08:00	Merge pull request #235 from stepfun-ai/feat/full-access-permission-tier
+1fe2d7863e9619d28bab59590b1cc71da708165f	2026-10-10T17:54:32+08:00	feat: add Full Access and simplify permission tiers
+3d70bae5acd30d0cd19de26bcbe95d74bf5cf2e9	2026-10-10T16:30:38+08:00	Merge pull request #234 from stepfun-ai/feat/effort-only-command
+f7392089e67d80232b73c87f894dec8100c6c20a	2026-10-10T14:35:35+08:00	Merge pull request #233 from stepfun-ai/fix/subagent-lane-no-polling
+debc6b76f9ab61c51e4db103aa63e13898125a89	2026-10-10T14:34:06+08:00	feat(cli): keep /effort as the only thinking-level command and save on Enter
+bd87c0c214909173f5e96d255ee947ca89514fe9	2026-10-10T13:53:40+08:00	fix(subagent): carry a background lane's full result in its final notification
+9fbc37f57decb2e342e6d0e984dbfa6a07d2dae9	2026-10-10T12:38:01+08:00	fix(subagent): deliver lane completions promptly while the parent sleeps
+b8a26be6102f3f06d03fe761bd27f72b901078e3	2026-10-10T10:43:31+08:00	Merge pull request #230 from stepfun-ai/fix/subagent-lane-wake
+8feb1fc61037d7217e377921a2f60b5783e0f30c	2026-10-09T21:18:37Z	fix(cli): retain explicit context projection after resource loading
+baa1ef8e72786aea04ab0d4bc39699f3538ecb26	2026-10-09T17:06:56Z	feat(compaction): use model-managed CLM by default
+3abb75e1a0c1efb210d1f211027cba5a2bfe51dd	2026-10-09T20:57:46+08:00	Merge remote-tracking branch 'origin/main' into fix/subagent-lane-wake
+7a687e3851c0cccf69cb3861647983a5955b3988	2026-10-09T20:46:27+08:00	Merge pull request #229 from stepfun-ai/fix/subagent-background-tui
+78d223293d2c35525426e0961fb768965c801319	2026-10-09T20:38:42+08:00	Merge branch 'main' into fix/subagent-background-tui
+39ec6e0adeca09d50c8897023ea4e471371634cd	2026-10-09T20:30:47+08:00	Merge pull request #227 from stepfun-ai/fix/subagent-chain-result
+3e78f793a0462d8d28da25418704a7c22da5b69f	2026-10-09T20:24:31+08:00	fix(subagent): keep progress notices steering into a running turn
+01af3937c56edfe9225cf137d11862f9c585c9fd	2026-10-09T19:22:50+08:00	fix(subagent): wake an idle parent when a background lane settles
+dd51e1143bdc1eec38930578434fce5467ce8a85	2026-10-09T19:01:11+08:00	fix(subagent): stop background lanes from flickering and flooding the transcript
+49e42afd8343728d53f1169d2eac8973a806d6c7	2026-10-09T17:31:01+08:00	fix(subagent): return the chain's final result and mark unstarted steps
+56e24b874529d01619d009abc22b1f0416488dd3	2026-10-09T16:14:57+08:00	Merge pull request #225 from stepfun-ai/fix/tool-running-delay-20261009
+9fcc6e61c4f34b53629319c40da7f0cb433bc491	2026-10-09T15:10:57+08:00	Merge pull request #226 from stepfun-ai/fix/continue-session-cwd-collision
+6e3acc8834a9a3bfae61b8bdfe38962df42ac4f2	2026-10-09T14:24:36+08:00	fix: 修复 StepPage 自动准备、插件误报和终端 PATH 持久化 (#223)
+943e624b5cc06497fd95dabcff74253367ef5c00	2026-10-09T13:57:49+08:00	fix: brand the user agent as stepcode
+9c148204334fd8ee99e96488cb02d31bc3359bdd	2026-10-09T13:36:39+08:00	fix: scope session listing and continue to the header cwd
+d8f5b93b831e9055db3ea160b7a09e99e2ef3b66	2026-10-09T04:02:31Z	fix(tui): refresh working status when tools finish
+494c8f214fa33fbf0c198d7327af1336a1396ead	2026-10-08T16:36:07+08:00	Merge pull request #217 from stepfun-ai/feat/then-run-action-fusion
+d296a486d5ade055158ec0a9fc5678e28d87892a	2026-10-08T16:29:15+08:00	Merge pull request #222 from stepfun-ai/feat/step-cli-remote-login
+fa006ade20295d29aa13bd3a40bbea1e71266988	2026-10-08T08:08:09Z	Merge pull request #203 from stepfun-ai/fix/ultracode-discovery-20260929
+777a4a1e79d8b7f933f18d8afa34cfc2719d21e0	2026-10-08T08:08:07Z	Merge pull request #195 from stepfun-ai/fix/context-completion-public-20260925
+39bcbe9bbf3b6f6cf5c28842faf413adffe5a061	2026-10-08T15:58:51+08:00	feat: add remote Step Plan login
+c00a7ff77d12064d00027afe60ef83a5f36017d3	2026-10-08T15:57:39+08:00	Merge pull request #212 from stepfun-ai/fix/claude-skills-discovery
+4b1ea92929354368fe402b3a28ce8e94bcf92a58	2026-10-08T10:35:24+08:00	Merge pull request #211 from stepfun-ai/fix/openrouter-app-attribution

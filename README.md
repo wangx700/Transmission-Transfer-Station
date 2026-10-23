@@ -1,5 +1,10 @@
 # 模型推理与Agent技术资料
 
+## Step 5、Step-Code 与 StepAudio 3 阶段更新
+
+- [2026-10-05 至 10-20 更新与技术说明](step系列推理和agent调研说明/更新记录/2026-10-20/Step5-StepCode-StepAudio3更新与技术说明.md)：含 vLLM step-5-preview-tracking 分支、Step-Code 提交、接口流程和技术文档；调研截至 10 月 20 日，10 月 23 日归档上传。
+
+
 ## RL Replay 与训练推理一致性
 
 - [六项特性汇总与阅读入口](rl-replay-consistency/README.md)：Sampling Mask、Index、R3、Hidden States、Logprob、Batch 一致性的当前状态、接口与数据格式。

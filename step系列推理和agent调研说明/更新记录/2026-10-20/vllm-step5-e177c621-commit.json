@@ -1,0 +1,185 @@
+{
+  "sha": "e177c621f2b8ae1be06190bc34eef84646e54f11",
+  "node_id": "C_kwDON7XVodoAKGUxNzdjNjIxZjJiOGFlMWJlMDYxOTBiYzM0ZWVmODQ2NDZlNTRmMTE",
+  "commit": {
+    "author": {
+      "name": "Jee Jee Li",
+      "email": "jeejeelee@inferact.ai",
+      "date": "2026-10-10T08:48:44Z"
+    },
+    "committer": {
+      "name": "GitHub",
+      "email": "noreply@github.com",
+      "date": "2026-10-10T08:48:44Z"
+    },
+    "message": "[Step5] Add H200 SM90 sparse attention support (#30)\n\nAssisted-by: OpenAI Codex\n\nSigned-off-by: Jee Jee Li <pandaleefree@gmail.com>",
+    "tree": {
+      "sha": "69c5483388387d658144ff309f968610244f8e1b",
+      "url": "https://api.github.com/repos/stepfun-ai/vllm/git/trees/69c5483388387d658144ff309f968610244f8e1b"
+    },
+    "url": "https://api.github.com/repos/stepfun-ai/vllm/git/commits/e177c621f2b8ae1be06190bc34eef84646e54f11",
+    "comment_count": 0,
+    "verification": {
+      "verified": true,
+      "reason": "valid",
+      "signature": "-----BEGIN PGP SIGNATURE-----\n\nwsFcBAABCAAQBQJqyfvsCRC1aQ7uu5UhlAAAoAAQADM8wBSnautlmvtP2jO3slMo\naZlopgyHOPuCGDrGKWi2l4UXLXojbqovcCYPQ+lxRMe2iqdcXJ4778P+02OXMCXr\nPL8ZsEP7mYKe+5w0LYjD0N06gwzu8WGnsOSCeQDt2baD9S+SWcYyaNQjrKqYlQUA\nZHYQrZzMIuc1qAnX6/SmXRD8fRy2F4ayvZOuJQLfc1RAGAQ6ddN6KM9jssai8hbM\nPAAZkbfIM8OI7V6gktepe5FIJXTzFJ4KLMu2KR5jyLxsqhkhp2RqePLGdmLRtAiz\nMxbOsVj+WX5kyq3WVX7JQemthbO1ABxXNToPGDG7QI79Skvw6uugUpzCjV313Xkj\nt6PSC8Q4L2HjgVhyiiznvOkOrOwLgtVA0HhuhLPJasIxSeVEA8M0ctb+Wa1m3u1r\n8SYl2JfQ7clIF4tEdlgfF+V7TQA9nTZqBcQtnNXLfXIlUoKpIyufxAMriAhp+OIC\n9OWpRrEPgpuLeCzGJRkmoTNWkkikA5U9ESqtJWaF4cV8Hqz6seltv6Y9QArGPiWq\nW7p++XHyIutZGA3FVd6RTivLKmhDtKyBymhSV/21adhObVaNVhu9+P8lZdcv0b39\nPs7YJ2mWiW8tYc4CKzZlDr4sKq6EvN744SQq0mJsiyFNx7Z/XJYmb4ADnYoqycPM\nB1GlXpQe9HhnxbihJTRy\n=53II\n-----END PGP SIGNATURE-----\n",
+      "payload": "tree 69c5483388387d658144ff309f968610244f8e1b\nparent 36193843a575bcbd4e2ed48520f3368522db63d8\nauthor Jee Jee Li <jeejeelee@inferact.ai> 1791622124 +0800\ncommitter GitHub <noreply@github.com> 1791622124 +0800\n\n[Step5] Add H200 SM90 sparse attention support (#30)\n\nAssisted-by: OpenAI Codex\n\nSigned-off-by: Jee Jee Li <pandaleefree@gmail.com>",
+      "verified_at": "2026-10-16T09:14:56Z"
+    }
+  },
+  "url": "https://api.github.com/repos/stepfun-ai/vllm/commits/e177c621f2b8ae1be06190bc34eef84646e54f11",
+  "html_url": "https://github.com/stepfun-ai/vllm/commit/e177c621f2b8ae1be06190bc34eef84646e54f11",
+  "comments_url": "https://api.github.com/repos/stepfun-ai/vllm/commits/e177c621f2b8ae1be06190bc34eef84646e54f11/comments",
+  "author": {
+    "login": "jeejeelee",
+    "id": 19733142,
+    "node_id": "MDQ6VXNlcjE5NzMzMTQy",
+    "avatar_url": "https://avatars.githubusercontent.com/u/19733142?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/jeejeelee",
+    "html_url": "https://github.com/jeejeelee",
+    "followers_url": "https://api.github.com/users/jeejeelee/followers",
+    "following_url": "https://api.github.com/users/jeejeelee/following{/other_user}",
+    "gists_url": "https://api.github.com/users/jeejeelee/gists{/gist_id}",
+    "starred_url": "https://api.github.com/users/jeejeelee/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/jeejeelee/subscriptions",
+    "organizations_url": "https://api.github.com/users/jeejeelee/orgs",
+    "repos_url": "https://api.github.com/users/jeejeelee/repos",
+    "events_url": "https://api.github.com/users/jeejeelee/events{/privacy}",
+    "received_events_url": "https://api.github.com/users/jeejeelee/received_events",
+    "type": "User",
+    "user_view_type": "public",
+    "site_admin": false
+  },
+  "committer": {
+    "login": "web-flow",
+    "id": 19864447,
+    "node_id": "MDQ6VXNlcjE5ODY0NDQ3",
+    "avatar_url": "https://avatars.githubusercontent.com/u/19864447?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/web-flow",
+    "html_url": "https://github.com/web-flow",
+    "followers_url": "https://api.github.com/users/web-flow/followers",
+    "following_url": "https://api.github.com/users/web-flow/following{/other_user}",
+    "gists_url": "https://api.github.com/users/web-flow/gists{/gist_id}",
+    "starred_url": "https://api.github.com/users/web-flow/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/web-flow/subscriptions",
+    "organizations_url": "https://api.github.com/users/web-flow/orgs",
+    "repos_url": "https://api.github.com/users/web-flow/repos",
+    "events_url": "https://api.github.com/users/web-flow/events{/privacy}",
+    "received_events_url": "https://api.github.com/users/web-flow/received_events",
+    "type": "User",
+    "user_view_type": "public",
+    "site_admin": false
+  },
+  "parents": [
+    {
+      "sha": "36193843a575bcbd4e2ed48520f3368522db63d8",
+      "url": "https://api.github.com/repos/stepfun-ai/vllm/commits/36193843a575bcbd4e2ed48520f3368522db63d8",
+      "html_url": "https://github.com/stepfun-ai/vllm/commit/36193843a575bcbd4e2ed48520f3368522db63d8"
+    }
+  ],
+  "stats": {
+    "total": 268,
+    "additions": 231,
+    "deletions": 37
+  },
+  "files": [
+    {
+      "sha": "121c4010f8b65ab29ac47d056b4c23f1d8a6b295",
+      "filename": "tests/kernels/core/test_step5_sparse_decode_attention.py",
+      "status": "modified",
+      "additions": 53,
+      "deletions": 9,
+      "changes": 62,
+      "blob_url": "https://github.com/stepfun-ai/vllm/blob/e177c621f2b8ae1be06190bc34eef84646e54f11/tests%2Fkernels%2Fcore%2Ftest_step5_sparse_decode_attention.py",
+      "raw_url": "https://github.com/stepfun-ai/vllm/raw/e177c621f2b8ae1be06190bc34eef84646e54f11/tests%2Fkernels%2Fcore%2Ftest_step5_sparse_decode_attention.py",
+      "contents_url": "https://api.github.com/repos/stepfun-ai/vllm/contents/tests%2Fkernels%2Fcore%2Ftest_step5_sparse_decode_attention.py?ref=e177c621f2b8ae1be06190bc34eef84646e54f11",
+      "patch": "@@ -10,8 +10,9 @@\n )\n \n pytestmark = pytest.mark.skipif(\n-    not torch.cuda.is_available() or torch.cuda.get_device_capability() != (10, 3),\n-    reason=\"B300\",\n+    not torch.cuda.is_available()\n+    or torch.cuda.get_device_capability() not in ((9, 0), (10, 3)),\n+    reason=\"Hopper or B300\",\n )\n \n \n@@ -117,7 +118,8 @@ def test_sparse_decode_fused_gate_matches_gate_kernel(groups, heads, splits):\n     torch.testing.assert_close(fused.reshape(tokens, -1), expected, rtol=0, atol=0)\n \n \n-def test_unsorted_selection_keeps_decode_layout():\n+@pytest.mark.parametrize(\"topk\", [2, 7, 512])\n+def test_unsorted_selection_keeps_decode_layout(topk):\n     \"\"\"sort=False picks the same regions, left-padded with current last.\"\"\"\n     from vllm.models.step5.nvidia.ops.sparse_indexer import select_regions\n \n@@ -127,10 +129,52 @@ def test_unsorted_selection_keeps_decode_layout():\n     scores = torch.randn(len(lengths), 2048, device=device)\n     scores[3, :100] = 0.5\n     current = torch.tensor(lengths, device=device)\n-    expected = select_regions(scores, current, 512)\n-    actual = select_regions(scores, current, 512, sort=False)\n+    expected = select_regions(scores, current, topk)\n+    actual = select_regions(scores, current, topk, backend=\"per_row\", sort=False)\n     for row, length in enumerate(lengths):\n-        live = min(length, 512)\n-        assert (actual[row, : 512 - live] == -1).all()\n-        assert actual[row, 512] == length\n-        assert torch.equal(actual[row].sort().values, expected[row])\n+        live = min(length, topk)\n+        assert (actual[row, : topk - live] == -1).all()\n+        assert actual[row, topk] == length\n+        assert torch.equal(actual[row], expected[row])\n+        reference = scores[row, :length].argsort(descending=True, stable=True)[:live]\n+        assert torch.equal(\n+            actual[row, topk - live : topk].sort().values, reference.sort().values\n+        )\n+\n+\n+@pytest.mark.parametrize(\"heads,next_n\", [(4, 2), (8, 1), (8, 2), (16, 1)])\n+def test_hopper_paged_scores_match_reference(heads, next_n):\n+    \"\"\"Packed scales, query pairs and page boundaries preserve weighted logits.\"\"\"\n+    from vllm.models.step5.nvidia.ops.sparse_indexer_scores import paged_mqa_logits_sm90\n+\n+    torch.manual_seed(29)\n+    device = torch.device(\"cuda\")\n+    batch, regions, block, dim = 3, 257, 32, 256\n+    pages_per_request = (regions + block - 1) // block\n+    pages = batch * pages_per_request\n+    table = torch.randperm(pages, device=device).int().view(batch, pages_per_request)\n+    lengths = torch.tensor([0, 33, regions], dtype=torch.int32, device=device)\n+    keys = torch.randn(pages, block, dim, device=device).to(torch.float8_e4m3fn)\n+    scales = torch.rand(pages, block, device=device) + 0.25\n+    packed = torch.empty((pages, block * (dim + 4)), dtype=torch.uint8, device=device)\n+    packed[:, : block * dim] = keys.view(torch.uint8).reshape(pages, -1)\n+    packed[:, block * dim :] = scales.view(torch.uint8).reshape(pages, -1)\n+    packed = packed.view(pages, block, 1, dim + 4)\n+    q = torch.randn(batch, next_n, heads + 4, dim, device=device).to(\n+        torch.float8_e4m3fn\n+    )\n+    q = q[:, :, :heads]  # Preserve the strides of a projection split.\n+    weights = torch.randn(batch * next_n, heads + 4, device=device)[:, :heads]\n+    actual = paged_mqa_logits_sm90(q, packed, weights, lengths, table, regions)\n+    for request, length in enumerate(lengths.tolist()):\n+        rows = slice(request * next_n, (request + 1) * next_n)\n+        positions = torch.arange(length, device=device)\n+        physical = table[request, positions // block].long()\n+        k = keys.float()[physical, positions % block].double()\n+        dot = torch.einsum(\"nhd,rd->nhr\", q[request].double(), k).clamp_min(0)\n+        expected = (dot * weights[rows].double()[:, :, None]).sum(1)\n+        expected *= scales[physical, positions % block].double()\n+        torch.testing.assert_close(\n+            actual[rows, :length].double(), expected, rtol=2e-5, atol=1e-4\n+        )\n+        assert torch.isneginf(actual[rows, length:]).all()"
+    },
+    {
+      "sha": "8b68c9115807f8cf16b4a41e18cbbb67d027f314",
+      "filename": "tests/kernels/core/test_step5_swa_decode.py",
+      "status": "modified",
+      "additions": 3,
+      "deletions": 2,
+      "changes": 5,
+      "blob_url": "https://github.com/stepfun-ai/vllm/blob/e177c621f2b8ae1be06190bc34eef84646e54f11/tests%2Fkernels%2Fcore%2Ftest_step5_swa_decode.py",
+      "raw_url": "https://github.com/stepfun-ai/vllm/raw/e177c621f2b8ae1be06190bc34eef84646e54f11/tests%2Fkernels%2Fcore%2Ftest_step5_swa_decode.py",
+      "contents_url": "https://api.github.com/repos/stepfun-ai/vllm/contents/tests%2Fkernels%2Fcore%2Ftest_step5_swa_decode.py?ref=e177c621f2b8ae1be06190bc34eef84646e54f11",
+      "patch": "@@ -8,8 +8,9 @@\n from vllm.models.step5.nvidia.ops.swa_decode import swa_decode_gated\n \n pytestmark = pytest.mark.skipif(\n-    not torch.cuda.is_available() or torch.cuda.get_device_capability() != (10, 3),\n-    reason=\"B300\",\n+    not torch.cuda.is_available()\n+    or torch.cuda.get_device_capability() not in ((9, 0), (10, 3)),\n+    reason=\"Hopper or B300\",\n )\n \n "
+    },
+    {
+      "sha": "15aaaf118465d8a5982885d75893159700641826",
+      "filename": "tests/v1/attention/test_step5_kv_layout.py",
+      "status": "modified",
+      "additions": 24,
+      "deletions": 16,
+      "changes": 40,
+      "blob_url": "https://github.com/stepfun-ai/vllm/blob/e177c621f2b8ae1be06190bc34eef84646e54f11/tests%2Fv1%2Fattention%2Ftest_step5_kv_layout.py",
+      "raw_url": "https://github.com/stepfun-ai/vllm/raw/e177c621f2b8ae1be06190bc34eef84646e54f11/tests%2Fv1%2Fattention%2Ftest_step5_kv_layout.py",
+      "contents_url": "https://api.github.com/repos/stepfun-ai/vllm/contents/tests%2Fv1%2Fattention%2Ftest_step5_kv_layout.py?ref=e177c621f2b8ae1be06190bc34eef84646e54f11",
+      "patch": "@@ -1,6 +1,6 @@\n # SPDX-License-Identifier: Apache-2.0\n # SPDX-FileCopyrightText: Copyright contributors to the vLLM project\n-\"\"\"B300 DSA integration through MRV2 metadata: prefill and graph replay.\"\"\"\n+\"\"\"Hopper/B300 DSA integration through MRV2 metadata: prefill and graph replay.\"\"\"\n \n import math\n from types import SimpleNamespace\n@@ -33,6 +33,7 @@ def mrv2_metadata(default_vllm_config):\n         uses_alibi=False,\n         rswa_window=None,\n         is_mm_prefix_lm=False,\n+        is_diffusion=False,\n         hf_config=SimpleNamespace(model_type=\"step5\"),\n         dtype=torch.bfloat16,\n     )\n@@ -88,7 +89,7 @@ def build(\n             ),\n             query_start_loc_cpu=starts,\n             max_query_len=max_query_len,\n-            seq_lens=seq_lens,\n+            seq_lens=seq_lens.to(torch.int32),\n             max_seq_len=block_table.shape[1] * block_size,\n             block_tables=[block_table],\n             slot_mappings=slot_mapping.unsqueeze(0),\n@@ -102,8 +103,9 @@ def build(\n \n \n @pytest.mark.skipif(\n-    not torch.cuda.is_available() or torch.cuda.get_device_capability() != (10, 3),\n-    reason=\"B300 integration\",\n+    not torch.cuda.is_available()\n+    or torch.cuda.get_device_capability() not in ((9, 0), (10, 3)),\n+    reason=\"Hopper or B300 integration\",\n )\n @pytest.mark.parametrize(\"n,topk\", [(41, 2), (97, 512), (4105, 512)])\n @pytest.mark.parametrize(\"groups,heads_per_group\", [(1, 8), (2, 16), (4, 16)])\n@@ -209,8 +211,9 @@ def run(chunks, group=None):\n \n \n @pytest.mark.skipif(\n-    not torch.cuda.is_available() or torch.cuda.get_device_capability() != (10, 3),\n-    reason=\"B300 integration\",\n+    not torch.cuda.is_available()\n+    or torch.cuda.get_device_capability() not in ((9, 0), (10, 3)),\n+    reason=\"Hopper or B300 integration\",\n )\n @pytest.mark.parametrize(\"groups\", [1, 4])\n @pytest.mark.parametrize(\"block\", [16, 32])\n@@ -292,8 +295,9 @@ def run(cache):\n \n \n @pytest.mark.skipif(\n-    not torch.cuda.is_available() or torch.cuda.get_device_capability() != (10, 3),\n-    reason=\"B300 integration\",\n+    not torch.cuda.is_available()\n+    or torch.cuda.get_device_capability() not in ((9, 0), (10, 3)),\n+    reason=\"Hopper or B300 integration\",\n )\n @pytest.mark.parametrize(\"n,topk\", [(43, 2), (4107, 512)])\n @pytest.mark.parametrize(\"output_padding\", [0, 2])\n@@ -422,8 +426,9 @@ def forward():\n \n \n @pytest.mark.skipif(\n-    not torch.cuda.is_available() or torch.cuda.get_device_capability() != (10, 3),\n-    reason=\"B300 integration\",\n+    not torch.cuda.is_available()\n+    or torch.cuda.get_device_capability() not in ((9, 0), (10, 3)),\n+    reason=\"Hopper or B300 integration\",\n )\n @pytest.mark.parametrize(\"groups\", [1, 4])\n @pytest.mark.parametrize(\"num_speculative_tokens\", [1, 3])\n@@ -620,8 +625,9 @@ def forward():\n \n \n @pytest.mark.skipif(\n-    not torch.cuda.is_available() or torch.cuda.get_device_capability() != (10, 3),\n-    reason=\"B300 integration\",\n+    not torch.cuda.is_available()\n+    or torch.cuda.get_device_capability() not in ((9, 0), (10, 3)),\n+    reason=\"Hopper or B300 integration\",\n )\n @pytest.mark.parametrize(\"groups\", [1, 4])\n @pytest.mark.parametrize(\"fp8\", [False, True])\n@@ -756,8 +762,9 @@ def run(impl, owners, positions, seq, *, plan_in_builder, upper_bound=None):\n \n \n @pytest.mark.skipif(\n-    not torch.cuda.is_available() or torch.cuda.get_device_capability() != (10, 3),\n-    reason=\"B300 integration\",\n+    not torch.cuda.is_available()\n+    or torch.cuda.get_device_capability() not in ((9, 0), (10, 3)),\n+    reason=\"Hopper or B300 integration\",\n )\n def test_grouped_decode_scores_match_per_group_rows():\n     \"\"\"DEP folds (token, KV group) into rows; each row must see its group only.\"\"\"\n@@ -813,8 +820,9 @@ def test_grouped_decode_scores_match_per_group_rows():\n \n \n @pytest.mark.skipif(\n-    not torch.cuda.is_available() or torch.cuda.get_device_capability() != (10, 3),\n-    reason=\"B300 integration\",\n+    not torch.cuda.is_available()\n+    or torch.cuda.get_device_capability() not in ((9, 0), (10, 3)),\n+    reason=\"Hopper or B300 integration\",\n )\n def test_paired_prefill_logits_match_padded_rows():\n     \"\"\"Scoring row pairs as next_n=2 equals scoring each zero-padded row.\"\"\""
+    },
+    {
+      "sha": "b1f8b962820327b5fbc1335bba1b113d1d5d5a7f",
+      "filename": "vllm/models/step5/nvidia/flashinfer_sparse.py",
+      "status": "modified",
+      "additions": 6,
+      "deletions": 1,
+      "changes": 7,
+      "blob_url": "https://github.com/stepfun-ai/vllm/blob/e177c621f2b8ae1be06190bc34eef84646e54f11/vllm%2Fmodels%2Fstep5%2Fnvidia%2Fflashinfer_sparse.py",
+      "raw_url": "https://github.com/stepfun-ai/vllm/raw/e177c621f2b8ae1be06190bc34eef84646e54f11/vllm%2Fmodels%2Fstep5%2Fnvidia%2Fflashinfer_sparse.py",
+      "contents_url": "https://api.github.com/repos/stepfun-ai/vllm/contents/vllm%2Fmodels%2Fstep5%2Fnvidia%2Fflashinfer_sparse.py?ref=e177c621f2b8ae1be06190bc34eef84646e54f11",
+      "patch": "@@ -43,7 +43,12 @@ def __init__(self, device: torch.device):\n         self._topk_backend = (\n             config.kernel_config.sparse_indexer_topk_backend if config else \"auto\"\n         )\n-        self._logits = fp8_paged_mqa_logits\n+        if torch.cuda.get_device_capability(device) == (9, 0):\n+            from .ops.sparse_indexer_scores import paged_mqa_logits_sm90\n+\n+            self._logits = paged_mqa_logits_sm90\n+        else:\n+            self._logits = fp8_paged_mqa_logits\n         properties = torch.cuda.get_device_properties(device)\n         self._num_sms = properties.multi_processor_count\n         self._workspace = torch.empty(128 << 20, dtype=torch.uint8, device=device)"
+    },
+    {
+      "sha": "808c34ac977e37a049d759d1b4a3f4e835ae1b42",
+      "filename": "vllm/models/step5/nvidia/model.py",
+      "status": "modified",
+      "additions": 1,
+      "deletions": 1,
+      "changes": 2,
+      "blob_url": "https://github.com/stepfun-ai/vllm/blob/e177c621f2b8ae1be06190bc34eef84646e54f11/vllm%2Fmodels%2Fstep5%2Fnvidia%2Fmodel.py",
+      "raw_url": "https://github.com/stepfun-ai/vllm/raw/e177c621f2b8ae1be06190bc34eef84646e54f11/vllm%2Fmodels%2Fstep5%2Fnvidia%2Fmodel.py",
+      "contents_url": "https://api.github.com/repos/stepfun-ai/vllm/contents/vllm%2Fmodels%2Fstep5%2Fnvidia%2Fmodel.py?ref=e177c621f2b8ae1be06190bc34eef84646e54f11",
+      "patch": "@@ -991,7 +991,7 @@ def __init__(\n                 Step5DSAAttentionBackend.supports_compute_capability(capability)\n             ):\n                 raise NotImplementedError(\n-                    f\"Step5 DSA requires B300 SM103; got {capability}.\"\n+                    f\"Step5 DSA requires SM90 or SM103; got {capability}.\"\n                 )\n             if self.head_dim not in (128, 192):\n                 raise ValueError("
+    },
+    {
+      "sha": "3e6f7d29cd3250f6556d7332cf47d247a0b2ec8e",
+      "filename": "vllm/models/step5/nvidia/ops/sparse_indexer.py",
+      "status": "modified",
+      "additions": 7,
+      "deletions": 4,
+      "changes": 11,
+      "blob_url": "https://github.com/stepfun-ai/vllm/blob/e177c621f2b8ae1be06190bc34eef84646e54f11/vllm%2Fmodels%2Fstep5%2Fnvidia%2Fops%2Fsparse_indexer.py",
+      "raw_url": "https://github.com/stepfun-ai/vllm/raw/e177c621f2b8ae1be06190bc34eef84646e54f11/vllm%2Fmodels%2Fstep5%2Fnvidia%2Fops%2Fsparse_indexer.py",
+      "contents_url": "https://api.github.com/repos/stepfun-ai/vllm/contents/vllm%2Fmodels%2Fstep5%2Fnvidia%2Fops%2Fsparse_indexer.py?ref=e177c621f2b8ae1be06190bc34eef84646e54f11",
+      "patch": "@@ -580,10 +580,6 @@ def select_regions(\n     output = torch.empty((rows, k + 1), device=scores.device, dtype=torch.long)\n     if not rows:\n         return output\n-    # DeepSelect requires the output row stride to be a multiple of 32 bytes.\n-    indices = torch.empty(\n-        (rows, triton.cdiv(k, 8) * 8), device=scores.device, dtype=torch.int32\n-    )[:, :k]\n     # Step5 requires exact FP32 ordering. The cooperative/persistent backends\n     # can select the wrong cutoff for scores separated by one FP32 epsilon.\n     if backend == \"auto\":\n@@ -597,6 +593,13 @@ def select_regions(\n         raise ValueError(\n             \"Step5 requires exact FP32 top-k; use auto, deep_select, or per_row.\"\n         )\n+    # Only DeepSelect guarantees a deterministic unsorted selection order.\n+    sort = sort or backend != \"deep_select\"\n+    # DeepSelect needs 32-byte row alignment; per_row writes contiguous rows.\n+    stride = triton.cdiv(k, 8) * 8 if backend == \"deep_select\" else k\n+    indices = torch.empty((rows, stride), device=scores.device, dtype=torch.int32)[\n+        :, :k\n+    ]\n     get_indexer_topk(backend)(\n         scores,\n         current.to(torch.int32).contiguous() if topk_lengths is None else topk_lengths,"
+    },
+    {
+      "sha": "e6805bc7b2904df1fcdb87073ccec760dc0520e8",
+      "filename": "vllm/models/step5/nvidia/ops/sparse_indexer_scores.py",
+      "status": "modified",
+      "additions": 129,
+      "deletions": 0,
+      "changes": 129,
+      "blob_url": "https://github.com/stepfun-ai/vllm/blob/e177c621f2b8ae1be06190bc34eef84646e54f11/vllm%2Fmodels%2Fstep5%2Fnvidia%2Fops%2Fsparse_indexer_scores.py",
+      "raw_url": "https://github.com/stepfun-ai/vllm/raw/e177c621f2b8ae1be06190bc34eef84646e54f11/vllm%2Fmodels%2Fstep5%2Fnvidia%2Fops%2Fsparse_indexer_scores.py",
+      "contents_url": "https://api.github.com/repos/stepfun-ai/vllm/contents/vllm%2Fmodels%2Fstep5%2Fnvidia%2Fops%2Fsparse_indexer_scores.py?ref=e177c621f2b8ae1be06190bc34eef84646e54f11",
+      "patch": "@@ -187,3 +187,132 @@ def decode_summary_scores(\n         active, positions, current, lengths, block_table, topk_lengths\n     )\n     return scores[:, :capacity], metadata\n+\n+\n+@triton.jit\n+def _paged_scores_sm90(\n+    Q,\n+    KV,\n+    W,\n+    Lengths,\n+    Table,\n+    Output,\n+    Q_BATCH: tl.constexpr,\n+    Q_NEXT: tl.constexpr,\n+    Q_HEAD: tl.constexpr,\n+    W_ROW: tl.constexpr,\n+    W_HEAD: tl.constexpr,\n+    KV_PAGE: tl.constexpr,\n+    TABLE_ROW: tl.constexpr,\n+    TABLE_COL: tl.constexpr,\n+    LENGTH_STRIDE: tl.constexpr,\n+    REGIONS: tl.constexpr,\n+    NEXT_N: tl.constexpr,\n+    HEADS: tl.constexpr,\n+    PAGE_SIZE: tl.constexpr,\n+    TILE: tl.constexpr,\n+):\n+    row = tl.program_id(0)\n+    batch = row // NEXT_N\n+    region = tl.program_id(1) * TILE + tl.arange(0, TILE)\n+    length = tl.load(Lengths + batch * LENGTH_STRIDE)\n+    valid = (region < REGIONS) & (region < length)\n+    physical = tl.load(\n+        Table + batch * TABLE_ROW + (region // PAGE_SIZE) * TABLE_COL,\n+        valid,\n+        other=0,\n+    ).to(tl.int64)\n+    d = tl.arange(0, 256)\n+    h = tl.arange(0, 16)\n+    key = tl.load(\n+        KV\n+        + physical[:, None] * KV_PAGE\n+        + (region % PAGE_SIZE)[:, None] * 256\n+        + d[None, :],\n+        valid[:, None],\n+        other=0,\n+    ).to(tl.float8e4nv, bitcast=True)\n+    query = tl.load(\n+        Q.to(tl.pointer_type(tl.uint8))\n+        + batch * Q_BATCH\n+        + (row % NEXT_N) * Q_NEXT\n+        + h[None, :] * Q_HEAD\n+        + d[:, None],\n+        h[None, :] < HEADS,\n+        other=0,\n+    ).to(tl.float8e4nv, bitcast=True)\n+    dot = tl.dot(key, query, out_dtype=tl.float32, max_num_imprecise_acc=0)\n+    dot = tl.maximum(dot, 0.0)\n+    weights = tl.load(W + row * W_ROW + h * W_HEAD, h < HEADS, other=0)\n+    # Match the four independent FP32 FMA chains used by the decode indexer.\n+    sums = tl.full((TILE, 4), 0, tl.float32)\n+    lane = tl.arange(0, 4)\n+    for group in tl.static_range(HEADS // 4):\n+        index = group * 4 + lane\n+        a = tl.gather(dot, tl.broadcast_to(index[None, :], (TILE, 4)), 1)\n+        w = tl.gather(weights, index, 0)\n+        sums = tl.fma(a, w[None, :], sums)\n+    a = tl.gather(sums, tl.full((TILE, 1), 0, tl.int32), 1).reshape((TILE,))\n+    b = tl.gather(sums, tl.full((TILE, 1), 1, tl.int32), 1).reshape((TILE,))\n+    c = tl.gather(sums, tl.full((TILE, 1), 2, tl.int32), 1).reshape((TILE,))\n+    e = tl.gather(sums, tl.full((TILE, 1), 3, tl.int32), 1).reshape((TILE,))\n+    scales = tl.load(\n+        (KV + physical * KV_PAGE + PAGE_SIZE * 256 + (region % PAGE_SIZE) * 4).to(\n+            tl.pointer_type(tl.float32)\n+        ),\n+        valid,\n+        other=0,\n+    )\n+    result = (((a + b) + c) + e) * scales\n+    tl.store(\n+        Output + row * REGIONS + region,\n+        tl.where(valid, result, float(\"-inf\")),\n+        region < REGIONS,\n+    )\n+\n+\n+def paged_mqa_logits_sm90(\n+    q: torch.Tensor,\n+    kv_fused: torch.Tensor,\n+    weights: torch.Tensor,\n+    context_lens: torch.Tensor,\n+    block_table: torch.Tensor,\n+    max_context_len: int,\n+    *,\n+    schedule_meta: torch.Tensor | None = None,\n+) -> torch.Tensor:\n+    \"\"\"Score Step5's packed FP8 summary pages on Hopper.\n+\n+    The packed page holds all FP8 keys followed by one FP32 scale per key.\n+    Query pairs share a page table and length, as in FlashInfer's interface.\n+    \"\"\"\n+    batch, next_n, heads, dim = q.shape\n+    assert q.dtype == torch.float8_e4m3fn and dim == 256\n+    assert heads in (4, 8, 16) and q.stride(-1) == 1\n+    assert kv_fused.dtype == torch.uint8 and kv_fused.is_contiguous()\n+    assert kv_fused.shape[2:] == (1, 260)\n+    assert weights.shape == (batch * next_n, heads)\n+    output = torch.empty(\n+        (batch * next_n, max_context_len), dtype=torch.float32, device=q.device\n+    )\n+    if batch and max_context_len:\n+        _paged_scores_sm90[(batch * next_n, triton.cdiv(max_context_len, 32))](\n+            q,\n+            kv_fused,\n+            weights,\n+            context_lens,\n+            block_table,\n+            output,\n+            *q.stride()[:3],\n+            *weights.stride(),\n+            kv_fused.stride(0),\n+            *block_table.stride(),\n+            context_lens.stride(0),\n+            max_context_len,\n+            next_n,\n+            heads,\n+            kv_fused.shape[1],\n+            32,\n+            num_warps=4,\n+        )\n+    return output"
+    },
+    {
+      "sha": "6cb8c10ed331f2a3d5087c4eafaa76dbb8bd1901",
+      "filename": "vllm/models/step5/nvidia/sparse_attention.py",
+      "status": "modified",
+      "additions": 8,
+      "deletions": 4,
+      "changes": 12,
+      "blob_url": "https://github.com/stepfun-ai/vllm/blob/e177c621f2b8ae1be06190bc34eef84646e54f11/vllm%2Fmodels%2Fstep5%2Fnvidia%2Fsparse_attention.py",
+      "raw_url": "https://github.com/stepfun-ai/vllm/raw/e177c621f2b8ae1be06190bc34eef84646e54f11/vllm%2Fmodels%2Fstep5%2Fnvidia%2Fsparse_attention.py",
+      "contents_url": "https://api.github.com/repos/stepfun-ai/vllm/contents/vllm%2Fmodels%2Fstep5%2Fnvidia%2Fsparse_attention.py?ref=e177c621f2b8ae1be06190bc34eef84646e54f11",
+      "patch": "@@ -1,6 +1,6 @@\n # SPDX-License-Identifier: Apache-2.0\n # SPDX-FileCopyrightText: Copyright contributors to the vLLM project\n-\"\"\"B300 sparse attention using FlashInfer and PyTorch.\"\"\"\n+\"\"\"Hopper and B300 sparse attention using FlashInfer and Triton.\"\"\"\n \n import functools\n from typing import Any, ClassVar, NamedTuple, cast\n@@ -328,8 +328,12 @@ def __init__(\n         )\n         self.kv_cache_dtype = kv_cache_dtype\n         config = get_current_vllm_config_or_none()\n-        if not current_platform.is_device_capability(103):\n-            raise NotImplementedError(\"Step5 DSA currently supports B300 (SM103) only\")\n+        capability = current_platform.get_device_capability()\n+        if (\n+            capability is None\n+            or not Step5DSAAttentionBackend.supports_compute_capability(capability)\n+        ):\n+            raise NotImplementedError(\"Step5 DSA requires SM90 or SM103\")\n         if config is not None:\n             # FlashInfer builds host-side ragged plans before CUDA graph capture.\n             config.compilation_config.cudagraph_num_of_warmups = max(\n@@ -927,7 +931,7 @@ def supports_kv_connector(cls) -> bool:\n \n     @classmethod\n     def supports_compute_capability(cls, capability: DeviceCapability) -> bool:\n-        return capability == DeviceCapability(10, 3)\n+        return capability in (DeviceCapability(9, 0), DeviceCapability(10, 3))\n \n     @staticmethod\n     def get_attention_warmup_num_tokens() -> int:"
+    }
+  ]
+}
