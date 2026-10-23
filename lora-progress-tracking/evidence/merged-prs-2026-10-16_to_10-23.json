@@ -1,0 +1,383 @@
+﻿{
+    "generated_beijing":  "2026-10-23 12:10 (+0800)",
+    "method":  "git log on origin/main between prior-report HEADs and 2026-10-23 12:03 fetch; keyword lora/adapter/punica/peft; Ascend by lora-related paths; states via GitHub pages",
+    "baselines":  {
+                      "vllm":  "dd9e07a25",
+                      "vllm_ascend":  "c5766cd5",
+                      "sglang":  "4e85e8ed"
+                  },
+    "endpoints":  {
+                      "vllm":  "19c0e170d2",
+                      "vllm_ascend":  "db8836752",
+                      "sglang":  "f4a2df3dac"
+                  },
+    "merged_vllm":  [
+                        {
+                            "pr":  41482,
+                            "subject":  "[bug] Fix lora reloading from disk every step when using AsyncLLM (#41482)",
+                            "commit":  "ef5bcaa387",
+                            "committed_utc":  "2026-10-22 10:35",
+                            "beijing":  "2026-10-22 18:35"
+                        },
+                        {
+                            "pr":  62906,
+                            "subject":  "[Bugfix] Apply default multimodal LoRA per batch conversation (#62906)",
+                            "commit":  "0f09c4b7ca",
+                            "committed_utc":  "2026-10-22 08:53",
+                            "beijing":  "2026-10-22 16:53"
+                        },
+                        {
+                            "pr":  61279,
+                            "subject":  "[Model][LoRA] Enable LoRA support for BERT cross-encoders (#61279)",
+                            "commit":  "7e005d0f9c",
+                            "committed_utc":  "2026-10-22 04:33",
+                            "beijing":  "2026-10-22 12:33"
+                        },
+                        {
+                            "pr":  48421,
+                            "subject":  "[Bugfix][LoRA] Skip no-LoRA tokens (index -1) in CPU torch bgmv ops (#48421)",
+                            "commit":  "a11f0cabef",
+                            "committed_utc":  "2026-10-22 02:59",
+                            "beijing":  "2026-10-22 10:59"
+                        },
+                        {
+                            "pr":  61284,
+                            "subject":  "[Bugfix][LoRA] Disable shared-expert aux stream with fully-sharded LoRA (#61284)",
+                            "commit":  "7bac28707d",
+                            "committed_utc":  "2026-10-22 02:59",
+                            "beijing":  "2026-10-22 10:59"
+                        },
+                        {
+                            "pr":  60306,
+                            "subject":  "[Bugfix][Core] Count unscheduled running requests toward max_loras (#60306)",
+                            "commit":  "3e58641d1f",
+                            "committed_utc":  "2026-10-22 02:58",
+                            "beijing":  "2026-10-22 10:58"
+                        },
+                        {
+                            "pr":  61391,
+                            "subject":  "[LoRA] Support BERT token classification heads (#61391)",
+                            "commit":  "e8e43c6a09",
+                            "committed_utc":  "2026-10-21 10:19",
+                            "beijing":  "2026-10-21 18:19"
+                        },
+                        {
+                            "pr":  62498,
+                            "subject":  "[LoRA][Step5] Support LoRA for Step5 (#62498)",
+                            "commit":  "e2d3340087",
+                            "committed_utc":  "2026-10-21 08:08",
+                            "beijing":  "2026-10-21 16:08"
+                        },
+                        {
+                            "pr":  62679,
+                            "subject":  "[XPU][CI] Skip test_deep_sleep_lora_tp2 on non-CUDA platforms (#62679)",
+                            "commit":  "0495a3de32",
+                            "committed_utc":  "2026-10-21 03:21",
+                            "beijing":  "2026-10-21 11:21"
+                        },
+                        {
+                            "pr":  62672,
+                            "subject":  "[CI][LoRA] Release punica test GPU memory before later engine tests (#62672)",
+                            "commit":  "8407bc0bb6",
+                            "committed_utc":  "2026-10-20 11:27",
+                            "beijing":  "2026-10-20 19:27"
+                        },
+                        {
+                            "pr":  62358,
+                            "subject":  "[Bugfix][LoRA] Restore LoRA state on wake-up from level-2 sleep (#62358)",
+                            "commit":  "86129933fb",
+                            "committed_utc":  "2026-10-20 06:16",
+                            "beijing":  "2026-10-20 14:16"
+                        },
+                        {
+                            "pr":  62084,
+                            "subject":  "[CI] Move Multimodal Processor, KV Connectors, LoRA, Spec Decode Draft and three more steps from fixed to automatic shards (#62084)",
+                            "commit":  "4e304b4d1e",
+                            "committed_utc":  "2026-10-20 02:36",
+                            "beijing":  "2026-10-20 10:36"
+                        },
+                        {
+                            "pr":  62224,
+                            "subject":  "[Bugfix][LoRA] Apply text-only LoRAs to the LM of multimodal wrappers (#62224)",
+                            "commit":  "7dc1705433",
+                            "committed_utc":  "2026-10-19 03:10",
+                            "beijing":  "2026-10-19 11:10"
+                        },
+                        {
+                            "pr":  61884,
+                            "subject":  "[Bugfix] Reject LoRA at config time for models without SupportsLoRA (#61884)",
+                            "commit":  "37891a98ea",
+                            "committed_utc":  "2026-10-19 02:52",
+                            "beijing":  "2026-10-19 10:52"
+                        },
+                        {
+                            "pr":  61618,
+                            "subject":  "[Bugfix][LoRA] Keep failed activations retryable (#61618)",
+                            "commit":  "83db1ab496",
+                            "committed_utc":  "2026-10-19 02:18",
+                            "beijing":  "2026-10-19 10:18"
+                        },
+                        {
+                            "pr":  61979,
+                            "subject":  "[Feature][LoRA][MoE] Expert LoRA for FlashInfer TRTLLM MXFP4 experts (#61979)",
+                            "commit":  "837e87e1c5",
+                            "committed_utc":  "2026-10-17 12:17",
+                            "beijing":  "2026-10-17 20:17"
+                        },
+                        {
+                            "pr":  61906,
+                            "subject":  "[Bugfix][LoRA] Fix garbage/NaN lora_expand output on SM90 with fp32 i… (#61906)",
+                            "commit":  "523d74e2ac",
+                            "committed_utc":  "2026-10-16 23:42",
+                            "beijing":  "2026-10-17 07:42"
+                        }
+                    ],
+    "merged_sglang":  [
+                          {
+                              "pr":  45892,
+                              "subject":  "[Feat] lora: Add plan-driven dense and MoE LoRA engines (#45892)",
+                              "commit":  "13999673ef",
+                              "committed_utc":  "2026-10-22 20:40",
+                              "beijing":  "2026-10-23 04:40"
+                          },
+                          {
+                              "pr":  37620,
+                              "subject":  "[Perf] diffusion: accumulate chunked LoRA merges with addmm (#37620)",
+                              "commit":  "dcf05724f7",
+                              "committed_utc":  "2026-10-22 13:18",
+                              "beijing":  "2026-10-22 21:18"
+                          },
+                          {
+                              "pr":  44450,
+                              "subject":  "[Fix] openai: distinguish s3 served-model-name from LoRA adapter syntax (#44450)",
+                              "commit":  "16eb87c06f",
+                              "committed_utc":  "2026-10-20 09:11",
+                              "beijing":  "2026-10-20 17:11"
+                          },
+                          {
+                              "pr":  40908,
+                              "subject":  "[Fix] [NPU] LoRA: Update for follow-up with changes in sgl-kernel-npu (#40908)",
+                              "commit":  "55b2aef7ad",
+                              "committed_utc":  "2026-10-20 02:16",
+                              "beijing":  "2026-10-20 10:16"
+                          },
+                          {
+                              "pr":  44770,
+                              "subject":  "[Fix] diffusion: Unmerge LoRA layers the next adapter does not cover (#44770)",
+                              "commit":  "58ad0748a6",
+                              "committed_utc":  "2026-10-19 04:33",
+                              "beijing":  "2026-10-19 12:33"
+                          },
+                          {
+                              "pr":  44204,
+                              "subject":  "[Fix] diffusion: Invalidate merged LoRA cache after adapter rewrites (#44204)",
+                              "commit":  "cff88d6eac",
+                              "committed_utc":  "2026-10-19 01:08",
+                              "beijing":  "2026-10-19 09:08"
+                          },
+                          {
+                              "pr":  44761,
+                              "subject":  "[Perf] [NVIDIA] diffusion/FLUX.3: Run dynamic LoRA through PrimsTS GEMMs (#44761)",
+                              "commit":  "680a2ff27e",
+                              "committed_utc":  "2026-10-18 12:32",
+                              "beijing":  "2026-10-18 20:32"
+                          },
+                          {
+                              "pr":  40171,
+                              "subject":  "[Fix] diffusion/lora: revalidate FLUX.2 FP8/NVFP4 fast paths after LoRA attach (#40171)",
+                              "commit":  "b15a78a881",
+                              "committed_utc":  "2026-10-17 12:48",
+                              "beijing":  "2026-10-17 20:48"
+                          },
+                          {
+                              "pr":  44376,
+                              "subject":  "[UX] diffusion: log LoRA merge decisions only on first evaluation (#44376)",
+                              "commit":  "80f40522cd",
+                              "committed_utc":  "2026-10-17 08:47",
+                              "beijing":  "2026-10-17 16:47"
+                          },
+                          {
+                              "pr":  44771,
+                              "subject":  "[CI] lora: Use the canonical Llama model ID in eviction tests (#44771)",
+                              "commit":  "33b5d26fa6",
+                              "committed_utc":  "2026-10-17 01:13",
+                              "beijing":  "2026-10-17 09:13"
+                          },
+                          {
+                              "pr":  41903,
+                              "subject":  "[Perf] [AMD] dsv4: reuse the q_lora fp8 quant for the C4 indexer wq_b (4/8) (#41903)",
+                              "commit":  "2adc76ad61",
+                              "committed_utc":  "2026-10-16 09:55",
+                              "beijing":  "2026-10-16 17:55"
+                          }
+                      ],
+    "merged_vllm_ascend":  [
+                               {
+                                   "pr":  19321,
+                                   "subject":  "[Feature][PCP] Support DeepSeek V4.1 SWA bounded replay with PCP (#19321)",
+                                   "commit":  "9a38d368e0",
+                                   "committed_utc":  "2026-10-23 01:18",
+                                   "beijing":  "2026-10-23 09:18"
+                               },
+                               {
+                                   "pr":  19190,
+                                   "subject":  "[Feature][DSA] Share O-projection buffers across DeepSeek layers (#19190)",
+                                   "commit":  "2164a24d1e",
+                                   "committed_utc":  "2026-10-21 09:18",
+                                   "beijing":  "2026-10-21 17:18"
+                               },
+                               {
+                                   "pr":  18224,
+                                   "subject":  "[Misc][CI] main2main 1010  a98247a (#18224)",
+                                   "commit":  "13548e9949",
+                                   "committed_utc":  "2026-10-20 04:08",
+                                   "beijing":  "2026-10-20 12:08"
+                               },
+                               {
+                                   "pr":  18936,
+                                   "subject":  "[Feature][Model] Extend DeepSeek V4.1 decoder bounded replay across model runners (#18936)",
+                                   "commit":  "e8b7bc990d",
+                                   "committed_utc":  "2026-10-19 13:52",
+                                   "beijing":  "2026-10-19 21:52"
+                               },
+                               {
+                                   "pr":  19034,
+                                   "subject":  "[BugFix][PCP] Size DSV4.1 replay metadata for local segments (#19034)",
+                                   "commit":  "5c9b1134d1",
+                                   "committed_utc":  "2026-10-19 02:00",
+                                   "beijing":  "2026-10-19 10:00"
+                               }
+                           ],
+    "tracked_status":  [
+                           {
+                               "repo":  "vllm-project/vllm",
+                               "pr":  61284,
+                               "status":  "MERGED",
+                               "merged_beijing":  "2026-10-22 10:59",
+                               "note":  "disable shared-expert aux stream with fully-sharded LoRA"
+                           },
+                           {
+                               "repo":  "sgl-project/sglang",
+                               "pr":  42875,
+                               "status":  "CLOSED",
+                               "note":  "superseded by #45892"
+                           },
+                           {
+                               "repo":  "sgl-project/sglang",
+                               "pr":  42882,
+                               "status":  "CLOSED",
+                               "note":  "superseded by #45892"
+                           },
+                           {
+                               "repo":  "sgl-project/sglang",
+                               "pr":  42884,
+                               "status":  "CLOSED",
+                               "note":  "superseded by #45892"
+                           },
+                           {
+                               "repo":  "sgl-project/sglang",
+                               "pr":  42284,
+                               "status":  "DRAFT",
+                               "note":  "plan PR, superseded by #45892"
+                           },
+                           {
+                               "repo":  "sgl-project/sglang",
+                               "pr":  44354,
+                               "status":  "DRAFT",
+                               "note":  "merge/unmerge endpoints draft"
+                           },
+                           {
+                               "repo":  "sgl-project/sglang",
+                               "pr":  44862,
+                               "status":  "MERGED-NOT-MAIN",
+                               "note":  "GLM-5.3-Flash KDA adapters, merged into non-main branch"
+                           },
+                           {
+                               "repo":  "vllm-project/vllm",
+                               "pr":  62999,
+                               "status":  "CLOSED-UNMERGED",
+                               "note":  "spec decode shared drafter embedding"
+                           },
+                           {
+                               "repo":  "vllm-project/vllm",
+                               "pr":  57245,
+                               "status":  "OPEN"
+                           },
+                           {
+                               "repo":  "vllm-project/vllm",
+                               "pr":  56327,
+                               "status":  "OPEN"
+                           },
+                           {
+                               "repo":  "vllm-project/vllm",
+                               "pr":  56718,
+                               "status":  "OPEN"
+                           },
+                           {
+                               "repo":  "vllm-project/vllm",
+                               "pr":  61804,
+                               "status":  "OPEN"
+                           },
+                           {
+                               "repo":  "vllm-project/vllm",
+                               "pr":  61267,
+                               "status":  "OPEN"
+                           },
+                           {
+                               "repo":  "vllm-project/vllm",
+                               "pr":  61301,
+                               "status":  "OPEN"
+                           },
+                           {
+                               "repo":  "vllm-project/vllm",
+                               "pr":  61714,
+                               "status":  "OPEN"
+                           },
+                           {
+                               "repo":  "vllm-project/vllm",
+                               "pr":  61162,
+                               "status":  "OPEN"
+                           },
+                           {
+                               "repo":  "vllm-project/vllm",
+                               "pr":  59819,
+                               "status":  "OPEN"
+                           },
+                           {
+                               "repo":  "vllm-project/vllm",
+                               "pr":  43254,
+                               "status":  "OPEN"
+                           },
+                           {
+                               "repo":  "vllm-project/vllm",
+                               "pr":  44147,
+                               "status":  "OPEN"
+                           },
+                           {
+                               "repo":  "vllm-project/vllm-ascend",
+                               "pr":  17834,
+                               "status":  "OPEN"
+                           },
+                           {
+                               "repo":  "vllm-project/vllm-ascend",
+                               "pr":  14049,
+                               "status":  "OPEN"
+                           },
+                           {
+                               "repo":  "vllm-project/vllm-ascend",
+                               "pr":  13490,
+                               "status":  "OPEN"
+                           },
+                           {
+                               "repo":  "vllm-project/vllm-ascend",
+                               "pr":  18592,
+                               "status":  "OPEN"
+                           },
+                           {
+                               "repo":  "sgl-project/sglang",
+                               "pr":  44617,
+                               "status":  "OPEN",
+                               "note":  "sglang-miles side observation"
+                           }
+                       ]
+}
