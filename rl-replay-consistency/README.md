@@ -7,6 +7,7 @@
 - [特性接口、数据格式与流程说明](特性流程说明.md)
 - [上一周合入 PR 与流程位置映射](上一周PR与流程映射.md)
 - [详细数据格式与 token 对齐说明（10-21 固定版本附录）](数据格式参考_2026-10-21.md)
+- [HiddenStates 回放进展、extract_hidden_states 与 OPD 的关系及 Ascend 映射（10-23）](HiddenStates回放进展与Ascend映射_2026-10-23.md)
 - [核查方法与原始 PR 状态摘录](evidence/README.md)
 
 ## 六项特性汇总
