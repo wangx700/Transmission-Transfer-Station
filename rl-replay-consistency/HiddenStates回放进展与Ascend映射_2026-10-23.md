@@ -56,7 +56,42 @@ OPD（Online Predictive Decoding）指 vLLM 在线投机解码框架（EAGLE/DFl
 3. **#59543 若合入**：Ascend 需补 MRV2 的 NPU gather/输出通道验证（token_outputs 通道本身是设备无关的，主要风险在 runner gather 点与 ACL graph 组合）。
 4. 互斥约束与上游一致：Ascend 上同样不能与 MTP/EAGLE 真 drafter 并存（method 槽位冲突）。
 
-## 4. 结论
+## 4. vllm-ascend 现在可以做的事情（已验证可用）
+
+以下均有当前 main 的代码/测试证据，今天即可使用：
+
+1. **离线 hidden states 提取与文件导出全链路**：`speculative_config.method=extract_hidden_states` + `ExampleHiddenStatesConnector`。MRV1 走原生 `AscendExtractHiddenStatesProposer`（ACL graph capture、DP 集合通信修复），MRV2 复用上游 proposer；dense（Qwen3-8B，aux 层 [2,18,34]）与 hybrid（Qwen3.5-0.8B）均有 e2e。**用途**：EAGLE3/DFlash/DSpark 草稿训练数据离线采集、蒸馏/激活诊断数据集构建（文件形态，token_ids 已对齐）。
+2. **OPD 推理正常线**：DSpark/MTP/EAGLE/DFlash 投机解码 patch 体系齐全。与第 1 条共享 method 槽位——**采集与加速可按部署分时切换**（同一次部署内互斥）。
+3. **扩展模型面的现成范式**：`patch_mamba_config.py` 的 hybrid+KV store 特判、patch 注册表的模型类型放宽（MiniMax）——新模型接入提取链路时有先例可循。
+4. **hidden states 未定型期间的替代诊断通道**：R3 路由回放（`--enable-return-routed-experts`，TP+EP e2e）、L 的 logprobs + Trace Replay（MRV2）、M sampling mask（NPU Triton kernel）、B batch invariance（beta）——训推一致性诊断不必然等 hidden states。
+
+## 5. 待做事项
+
+### 5.1 不依赖上游合入，可立即启动
+
+| # | 事项 | 要点与验收 |
+| --- | --- | --- |
+| T1 | **在线 HTTP 形态 e2e** | `vllm serve` + extract_hidden_states + 请求 `kv_transfer_params` 回传路径；覆盖 MRV1/MRV2 × eager/ACL、并发下 lock file → `get_finished` 完成语义、取消/失败清理、`cleanup_hidden_states` 磁盘策略。验收：响应回传 `hidden_states_path` 且文件完整可 load |
+| T2 | **#62411 分支 PoC（移植四关）** | ① V2 runner 兼容改造点盘点；② pinned D2H 的 NPU 等价（NPU 无 UVA）；③ Ascend scheduler patch 体系下 finished_req_ids 语义回归（#62411 的 completion tracking 修复恰好动这块）；④ 禁 prefix cache 对 RL rollout 成本的量化评估 |
+| T3 | **成本基准** | hidden-state 池内存模型（`num_aux_layers × hidden_size × tokens × dtype`）、D2H/文件 IO 吞吐、磁盘增长曲线；`request_finished` 延迟释放 KV blocks 的 QPS 压力点定位 |
+| T4 | **六特性 NPU 实测最小闭环** | M+L（sampling mask + processed_logprobs）、R（TP/EP 行对齐）、B（A2/A3/950 混批）——现有结论均为代码/测试存在性证据，补真实硬件数据 |
+
+### 5.2 依赖上游合入后的对齐
+
+| # | 触发条件 | Ascend 动作 |
+| --- | --- | --- |
+| T5 | #59543 合入 | NPU 等价 hook（上游 hook 在 `gpu_model_runner.py` 仅 +7 行，Ascend V2 runner 需对应 gather 点）；token_outputs 通道 × ACL graph 组合验证；注意其 PP/CP 拒绝约束与 Ascend RL 部署形态的相容性 |
+| T6 | #62411 合入 | 按 T2 清单转正；窗口解析/掩码写缓存不动，平台差异集中于 D2H 与 runner 挂点 |
+| T7 | #57736 合入 | runner 级 capture plan 的 NPU 适配；若主线选择该方向（与 drafter 共存），优先级最高 |
+| T8 | 持续 | 三线任一定型即触发对齐评估；为每条线锁定上游锚点 commit 再升级 |
+
+### 5.3 需要内部决策的点
+
+- **D1 互斥取舍**：rollout 是否需要 MTP 加速与 hidden 导出并存？并存 → 只能等 #57736 线；分时 → `extract_hidden_states` 路线今天可用。
+- **D2 格式未定型前的内部 schema**：hidden states 文件先带 `schema_version`/窗口与层映射元数据（对齐主报告表 9 建议），不冒充 vLLM 公共格式，上游定型后迁移。
+- **D3 向上游反哺**：Ascend 侧 DP gloo 修复、ACL graph capture 模式经验，可在 #62411/#57736/RFC 下补跨硬件视角（#59543 正在征集 GPU 测试运行，Ascend 数据点可作参考但不替代其 CUDA 验证要求）。
+
+## 6. 结论
 
 1. `extract_hidden_states` 是 OPD 框架的"无 drafter 复用"：捕获同源、用途从加速改为导出；生成结果与不开它严格一致。
 2. H 对外回放当前有两条主提案线（runner 级 #57736 可共存 vs connector 级 #62411 低侵入文件导出）+ 一条最小内联线（#59543），均未合入；**跟踪清单从 2 项扩为 4 项**（加 #62411、#59543）。
