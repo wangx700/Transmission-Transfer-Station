@@ -6,6 +6,11 @@
 - [特性流程与代码证据](rl-replay-consistency/特性流程说明.md)、[上一周合入 PR 与流程映射](rl-replay-consistency/上一周PR与流程映射.md)：状态核对于2026-10-23；上一周明确指北京时间2026-10-12至10-18。
 - [vLLM / vllm-ascend Batch 一致性周报](batch-consistency-weekly/README.md)：2026-10-16 → 10-23 合入 PR 说明、当前 batch 一致性状态与新增跟踪项；含整体报告（刷新至 2026-10-23 HEAD）与 [PR diff 证据](batch-consistency-weekly/evidence/README.md)。
 
+## DSA Index Replay 上游跟踪
+
+- [当前整体支持与适配报告](dsa-index-replay/DSA_index_replay_status.md)：vLLM、vLLM-Ascend、SGLang 索引采集返回能力、限制与代码证据，状态截至 2026-10-23。
+- [10-16 至 10-23 阶段变化说明](dsa-index-replay/DSA_index_replay_changes_2026-10-16_to_2026-10-23.md)：vLLM 新增 #62915 Profile-based indexer replay Draft 等本期合入 PR 与新增跟踪项；[核查证据](dsa-index-replay/evidence/README.md) 附 PR 状态与合入 SHA 清单。
+
 **优先阅读：[技术精简版](https://github.com/wangx700/Transmission-Transfer-Station/blob/main/step%E7%B3%BB%E5%88%97%E6%8E%A8%E7%90%86%E5%92%8Cagent%E8%B0%83%E7%A0%94%E8%AF%B4%E6%98%8E/%E6%A0%B8%E5%BF%83%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A/%E6%8A%80%E6%9C%AF%E7%B2%BE%E7%AE%80%E7%89%88.md)。** 集中保留结构、机制、接口与代码；详细专题按需展开。
 
 

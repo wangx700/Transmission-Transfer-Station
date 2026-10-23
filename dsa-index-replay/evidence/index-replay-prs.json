@@ -1,0 +1,143 @@
+[
+  {
+    "repo": "vllm-project/vllm",
+    "kind": "pending",
+    "verified_at": "2026-10-23",
+    "items": [
+      {
+        "number": 62915,
+        "title": "[Feature][AuxOutput] Add Profile-based indexer replay for sparse models",
+        "state": "open",
+        "draft": true,
+        "created_window": "2026-10-21 前后",
+        "html_url": "https://github.com/vllm-project/vllm/pull/62915",
+        "files_count": 57,
+        "key_files": [
+          "vllm/model_executor/layers/indexer_capture.py",
+          "vllm/distributed/aux_output_connector/store.py",
+          "vllm/distributed/aux_output_connector/profile.py",
+          "docs/training/indexer_replay.md",
+          "vllm/entrypoints/openai/completion/protocol.py",
+          "vllm/models/deepseek_v32/attention.py",
+          "vllm/models/deepseek_v4/attention.py"
+        ]
+      },
+      {
+        "number": 49555,
+        "title": "[Feature][AuxOutput] Replay ordinary raw indexer selections",
+        "state": "open",
+        "draft": true,
+        "html_url": "https://github.com/vllm-project/vllm/pull/49555"
+      },
+      {
+        "number": 47280,
+        "title": "[RFC]: Implement return indexer topk for sparse attention.",
+        "state": "open",
+        "is_issue": true,
+        "html_url": "https://github.com/vllm-project/vllm/issues/47280"
+      },
+      {
+        "number": 48305,
+        "title": "Training-inference consistency RFC",
+        "state": "open",
+        "is_issue": true,
+        "html_url": "https://github.com/vllm-project/vllm/issues/48305"
+      },
+      {
+        "number": 60734,
+        "title": "[Bugfix][Attention] Keep DSA shared-indexer top-k state per DBO microbatch",
+        "state": "open",
+        "draft": false,
+        "html_url": "https://github.com/vllm-project/vllm/pull/60734"
+      },
+      {
+        "number": 59367,
+        "title": "[Bugfix][Attention] Reserve the sparse indexer's DCP top-k merge scratch through the workspace manager",
+        "state": "open",
+        "draft": false,
+        "html_url": "https://github.com/vllm-project/vllm/pull/59367"
+      },
+      {
+        "number": 63237,
+        "title": "[Refactor][R3] Initialize routed experts capturer before KV cache profiling",
+        "state": "open",
+        "draft": false,
+        "created_window": "2026-10-22/23",
+        "html_url": "https://github.com/vllm-project/vllm/pull/63237",
+        "note": "边界跟踪：MoE routed-experts 族，与 index replay 共用 AuxOutput/capturer 基础设施"
+      }
+    ]
+  },
+  {
+    "repo": "vllm-project/vllm-ascend",
+    "kind": "pending",
+    "verified_at": "2026-10-23",
+    "items": [
+      {
+        "number": 18651,
+        "title": "[Feature][GLM] Support A5 FP8 CANN LI C8 with DSA context parallelism",
+        "state": "open",
+        "draft": false,
+        "html_url": "https://github.com/vllm-project/vllm-ascend/pull/18651"
+      },
+      {
+        "number": 10072,
+        "title": "[RFC]: Reinforcement Learning Enhancement",
+        "state": "open",
+        "is_issue": true,
+        "html_url": "https://github.com/vllm-project/vllm-ascend/issues/10072"
+      }
+    ]
+  },
+  {
+    "repo": "vllm-project/vllm",
+    "kind": "merged_in_window",
+    "window": "基线 dd9e07a25f 之后至 2026-10-23（提交日期 10-15 至 10-23）",
+    "date_source": "本地主线合入提交日期，与上期报告口径一致",
+    "items": [
+      { "number": 59645, "title": "[Bugfix] Make cooperative TopK exact on candidate overflow", "merge_commit": "612e928016", "commit_date": "2026-10-21" },
+      { "number": 62467, "title": "[Bugfix][Kernel] persistent_topk: don't select float4 tail lanes past the row length", "merge_commit": "bde4d00113", "commit_date": "2026-10-19" },
+      { "number": 61938, "title": "[Bugfix][Attention] Fix Triton MLA decode int32 overflow and logits workspace accounting", "merge_commit": "689effee6d", "commit_date": "2026-10-18" },
+      { "number": 57832, "title": "[ROCm][Model][MiniMax-M3] Context-parallel sparse lightning indexer (Triton, opt-in)", "merge_commit": "153b76b304", "commit_date": "2026-10-21" },
+      { "number": 62377, "title": "[PCP] Allow decode-only full CUDA graphs for DSv3.2/GLM-5.2/5.3 sparse MLA with DCP=1", "merge_commit": "66b431888d", "commit_date": "2026-10-19" },
+      { "number": 61943, "title": "[ROCm][Perf] Use AITER top-k for the DeepSeek-V3.2/GLM-5 sparse indexer", "merge_commit": "fb61ac07bd", "commit_date": "2026-10-19" },
+      { "number": 60834, "title": "[ROCm][Perf] Apply opt-in paged MXFP4 sparse indexer dense path for DeepSeek-V4", "merge_commit": "022b43c66f", "commit_date": "2026-10-23" },
+      { "number": 61615, "title": "[Perf] Enable small-head FlashMLA sparse prefill for DS V4.1 on SM90", "merge_commit": "b579949edf", "commit_date": "2026-10-22" },
+      { "number": 62029, "title": "[Attention] Use trtllm-gen for the FlashInfer DCP prefill context pass", "merge_commit": "7b569ec895", "commit_date": "2026-10-20" },
+      { "number": 60805, "title": "[Bugfix] Size the HiSparse hot buffer from the rounded sparse top-k width", "merge_commit": "b048630a19", "commit_date": "2026-10-19" },
+      { "number": 59857, "title": "[Feature][PCP] Add DeepSeek-V4.1-Flash support", "merge_commit": "fa75d3456d", "commit_date": "2026-10-16" }
+    ]
+  },
+  {
+    "repo": "vllm-project/vllm-ascend",
+    "kind": "merged_in_window",
+    "window": "基线 c5766cd5e 之后至 2026-10-23（提交日期 10-16 至 10-23，共 151 提交）",
+    "items": [
+      { "number": 19220, "title": "[Feature] Add DSpark bidirectional SparseFlashMla", "merge_commit": "597465395", "commit_date": "2026-10-22" },
+      { "number": 19190, "title": "[Feature][DSA] Share O-projection buffers across DeepSeek layers", "merge_commit": "2164a24d1", "commit_date": "2026-10-21" },
+      { "number": 19262, "title": "[BugFix][Attention] Size o_proj static exchange buffers from decode capacity", "merge_commit": "9a885476a", "commit_date": "2026-10-20" },
+      { "number": 19079, "title": "[BugFix] Recognize KPool main attention as SFA", "merge_commit": "e5e820d5c", "commit_date": "2026-10-21" },
+      { "number": 18715, "title": "[BugFix][KV Transfer] Support packed SFA C8 layerwise transfer", "merge_commit": "363af1c27", "commit_date": "2026-10-16" },
+      { "number": 19064, "title": "[BugFix][Attention] Fix C8 K-scale corruption during KV transfers", "merge_commit": "e6c0f4b7d", "commit_date": "2026-10-17" },
+      { "number": 18752, "title": "[BugFix][Attention] Use FIA v2 for DCP MLA decode", "merge_commit": "7c0c846c1", "commit_date": "2026-10-17" },
+      { "number": 19491, "title": "[Doc] Remove legacy DSA-CP documentation", "merge_commit": "2df1e2f56", "commit_date": "2026-10-23" },
+      { "number": 18445, "title": "[BugFix] Fix MiniMax-M3 fused sparse attention boundary in piecewise graphs", "merge_commit": "68d666bfe", "commit_date": "2026-10-16" },
+      { "number": 18267, "title": "[CI] Add MRV2 context-parallel accuracy coverage for SFA, GQA and MLA", "merge_commit": "93f8d0fca", "commit_date": "2026-10-17" }
+    ]
+  },
+  {
+    "repo": "sgl-project/sglang",
+    "kind": "merged_in_window",
+    "window": "基线 4e85e8ed37 之后至 2026-10-23（提交日期 10-15 至 10-23）",
+    "items": [
+      { "number": 44280, "title": "[Feat] KVShard: Add attention and indexer support for page-sharded DSA caches", "merge_commit": "cc811ff0c3", "commit_date": "2026-10-23" },
+      { "number": 45783, "title": "[Refactor] dsv4: Keep only the two-level V4.1 indexer in the prefill graph", "merge_commit": "0d6b283d7e", "commit_date": "2026-10-22" },
+      { "number": 45573, "title": "[Perf] dsv4: Restore sparse prefill for request-window rows", "merge_commit": "97945831f9", "commit_date": "2026-10-21" },
+      { "number": 44564, "title": "[Fix] dsa-eagle-topk: Copy token keys and scales when relocating index cache", "merge_commit": "96ba108072", "commit_date": "2026-10-19" },
+      { "number": 43832, "title": "[Fix] DSA: skip-topk pipeline handoff for owed outputs", "merge_commit": "d5d87899f9", "commit_date": "2026-10-17" },
+      { "number": 42565, "title": "[Fix] dsa: Fix ragged seed indices before MTP draft decode", "merge_commit": "7c99ace127", "commit_date": "2026-10-16" },
+      { "number": 44436, "title": "[Perf] [NPU] mem_cache: Increase GLM-5.2-W4A8C8 KV cache capacity with compact DSA indexer allocation", "merge_commit": "3bf4cbc6cf", "commit_date": "2026-10-20" },
+      { "number": 38461, "title": "[Perf] [NPU] attn: add not needs_cpu_seq_lens for dsa modules", "merge_commit": "07eb671b6a", "commit_date": "2026-10-20" }
+    ]
+  }
+]
