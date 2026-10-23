@@ -8,6 +8,7 @@
 - **vLLM**：Step5（文本+VL）LoRA 合入（#62498）；BERT 扩展到 token classification（#61391）与 cross-encoder（#61279）；生命周期与调度集中修复（sleep 恢复 #62358、失败激活可重试 #61618、config 拒绝 #61884、max_loras #60306、AsyncLLM 重载 #41482、多模态默认 LoRA #62906、文本 LoRA×多模态 wrapper #62224）；上期跟踪 #61284（fully-sharded LoRA 禁用 shared-expert aux stream）合入。
 - **vLLM-Ascend**：本周零 LoRA 合入、零新 LoRA PR；replay/DSA 底座扩展（#18936、#19321、#19190）不改变 LoRA 组合限制——replay 遇 LoRA 关闭、PCP LoRA NotImplementedError、dynamic EPLB/FusedMC2 断言在 10-23 main 原样保留。
 - **新跟踪重点**：SGLang #45231（DSV4/V4.1 attention + shared expert，与 vLLM #57245 平行）、vLLM #62049（lm_head prompt logprobs）、#63077（idle DP + MoE slot）、#62034（attention_k_eq_v packed V slice）、#62019（router weight on input）、SGLang #44704（GDN adapters）。
+- **vLLM-Ascend 待做清单**（主文档第 6 节）：P0 三项可直接开工（V4.1 wo_a 分组输出、compressor 接入、MLA Q/V 增量+kv_b-only 显式拒绝——当前 `vllm_ascend/lora` 无任何 MLA 处理）；vLLM 本周生命周期修复转化的 8 项自查；PCP/replay/MC2-EPLB/MRV2 默认化四类组合扩展按业务择一立项。
 
 ## 文件
 
