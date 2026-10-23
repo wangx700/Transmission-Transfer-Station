@@ -87,7 +87,7 @@
 | 中 | vLLM [#63237](https://github.com/vllm-project/vllm/pull/63237) | Open；10-22/23 创建 | R3 routed-experts capturer 初始化时序（KV cache profiling 之前）；与 index replay 共用 AuxOutput/capturer 基础设施，列作边界跟踪 |
 | 中 | Ascend [#19491](https://github.com/vllm-project/vllm-ascend/pull/19491) | 10-23 合入 | 旧 DSA-CP 文档移除；CP 能力口径变化直接影响 #18651 的跟踪上下文 |
 
-表格注释："新增跟踪"指本报告首次列入，不代表本期新建。#62915 与 #63237 为本期新创建 PR；#19220/#57832/#19491 为本期合入且改变适配前提的条目。#63237 属 MoE routed-experts 返回族，因与 index replay 共用基础设施列入边界跟踪。本次仍未确认 Ascend 独立的 DSA 索引采集返回实现 PR/RFC；候选依据适配相关性筛选，非所有 indexer PR 的穷举。
+表格注释："新增跟踪"指本报告首次列入，不代表本期新建。#62915 与 #63237 为本期新创建 PR；#19220/#57832/#19491 为本期合入且改变适配前提的条目。#63237 属 MoE routed-experts 返回族，因与 index replay 共用基础设施列入边界跟踪。本次仍未确认 Ascend 独立的 DSA 索引采集返回实现 PR/RFC；候选依据适配相关性筛选，非所有 indexer PR 的穷举。另见 [PR #62915 独立说明](DSA_index_replay_PR62915_说明.md)。
 
 ## 4. 对后续工作的影响
 

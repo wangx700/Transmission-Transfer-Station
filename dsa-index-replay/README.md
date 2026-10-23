@@ -4,6 +4,7 @@
 
 - [当前整体支持与适配报告](DSA_index_replay_status.md)：vLLM、vLLM-Ascend、SGLang 的 DSA 索引采集返回能力、限制与代码证据。
 - [10-16 至 10-23 阶段变化说明](DSA_index_replay_changes_2026-10-16_to_2026-10-23.md)：间隔内已合入 PR、无变化事项与新增跟踪项。
+- [PR #62915 独立说明](DSA_index_replay_PR62915_说明.md)：Profile-based indexer replay 的支持的模型布局、返回通道、运行前提与对 Ascend 适配的含义。
 - [核查证据与复查方法](evidence/README.md)：PR 状态核查口径与合入 SHA 清单。
 
 ## 本期核心结论（2026-10-23）
