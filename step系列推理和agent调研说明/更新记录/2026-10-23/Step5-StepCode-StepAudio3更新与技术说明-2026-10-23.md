@@ -61,66 +61,66 @@
 
 ## 1.3 Agent 侧：Step-Code 提交与逻辑
 
-Step-Code 是本区间**唯一持续更新**的对象。下表按合并时间（北京时间）列出 10-05 → 10-23 的**全部合入 PR**，不按 10-20 分段。
+Step-Code 是本区间**唯一持续更新**的对象。下表按合并时间（北京时间）列出 10-05 → 10-23 的**全部合入 PR**，不按 10-20 分段；「修改内容」为按标题与提交意图归纳的实际改动，「昇腾适配」给出是否需要跟着改的判断及理由。
 
-| 时间（+08） | PR | 标题（原文） | 与本项目相关性 |
-|---|---|---|---|
-| 10-08 10:35 | #211 | fix: add StepCode app attribution headers | — |
-| 10-08 15:57 | #212 | fix(skills): discover ~/.claude/skills, .claude/skills and ~/.stepcode/skills | — |
-| 10-08 16:24 | #195 | fix(coding-agent): recover command failures and preserve session state | — |
-| 10-08 16:25 | #203 | fix(coding-agent): make Ultracode mode discoverable | — |
-| 10-08 16:29 | #222 | feat: add remote Step Plan login | — |
-| 10-08 16:36 | #217 | feat: add then_run verification to edit_file and write_file | — |
-| 10-09 14:24 | #223 | fix: 修复 StepPage 自动准备、插件误报和终端 PATH 持久化 | — |
-| 10-09 15:10 | #226 | fix: scope session listing and continue to the header cwd | — |
-| 10-09 16:14 | #225 | fix(tui): refresh working status when tools finish | — |
-| 10-09 20:30 | #227 | fix(subagent): return the chain's final result and mark unstarted steps | — |
-| 10-09 20:46 | #229 | fix(subagent): stop background lanes from flickering and flooding the transcript | — |
-| 10-10 10:43 | #230 | fix(subagent): wake an idle parent when a background lane settles | — |
-| 10-10 14:35 | #233 | fix(subagent): deliver background lane results promptly and in full | — |
-| 10-10 16:30 | #234 | feat(cli): keep /effort as the only thinking-level command and save on Enter | — |
-| 10-11 12:02 | #235 | feat: add Full Access and simplify permission tiers | — |
-| 10-11 12:04 | #232 | feat(compaction): use model-managed CLM by default | **强相关** |
-| 10-12 12:05 | #241 | fix: stop repeating Ultracode capability reminders | — |
-| 10-12 12:11 | #244 | fix(skills): readable, actionable SKILL.md frontmatter diagnostics | — |
-| 10-12 12:28 | #243 | fix(shell): discover native Git Bash on Windows instead of WSL | — |
-| 10-12 15:04 | #245 | feat: persist Ultracode mode per session | — |
-| 10-12 15:29 | #246 | fix(skills): quiet startup skill conflicts for duplicated shared skill dirs | — |
-| 10-14 18:02 | #249 | fix: harden workflow lifecycle, concurrency, and retries with structured errors | — |
-| 10-14 18:06 | #248 | fix: route then_run through run_command | — |
-| 10-15 11:22 | #250 | docs: add repository structure and contributor guidelines | — |
-| 10-15 14:04 | #252 | fix: always use system messages for StepFun chat models | — |
-| 10-15 17:21 | #254 | chore: define fixed internal pull request reviews | — |
-| 10-16 11:35 | #251 | feat(usage): add Overview, Account, and Status panels | — |
-| 10-16 11:39 | #242 | feat: add tool availability and standalone task review | — |
-| 10-16 11:42 | #255 | fix: preserve context budgets and summary tool identity | **强相关** |
-| 10-19 16:38 | #262 | remove | — |
-| 10-19 19:14 | #261 | feat(step): store and refresh an account session beside the API key | — |
-| 10-19 19:38 | #266 | feat(coding-agent): add SQLite session search index | — |
-| 10-19 20:09 | #265 | docs: remove residual upstream branding across all Markdown docs | — |
-| 10-19 21:07 | #267 | fix(context): retain live-context notices across append-only turns | **强相关** |
-| 10-20 14:49 | #259 | feat(cli): show recent models in the model selector | — |
-| 10-20 14:49 | #260 | feat(coding-agent): connect terminal sessions to Lark with mirrored approvals | — |
-| 10-20 15:36 | #271 | fix(step): resolve update archive root for flat Windows zips | — |
-| 10-20 16:47 | #268 | feat(cli): add /btw for one-shot side questions | — |
-| 10-20 17:13 | #273 | docs(contributing): add project contribution guide | — |
-| 10-20 19:49 | #274 | feat(tui): show terminal tab status and simplify tool errors | — |
-| 10-21 11:35 | #275 | fix(cli): abbreviate run_command titles in Step tool rows | — |
-| 10-21 14:01 | #270 | feat(web): improve conversation, inspectors, performance metrics and account settings (part 1) | — |
-| 10-21 17:35 | #282 | feat(subagent): let the model choose foreground or background lanes | — |
-| 10-21 17:35 | #283 | fix(workflow): reject phase() misuse instead of silently running no agents | — |
-| 10-21 17:40 | #284 | fix(compaction): retry incomplete streams and report effective failure budgets | 方法同向 |
-| 10-21 17:41 | #279 | fix(step): stop dropping bracket-prefixed paths in narrowed find_files searches | — |
-| 10-21 17:42 | #277 | fix(step): include installer output in update failure messages | — |
-| 10-21 17:42 | #278 | fix(step): resolve search rows structurally instead of re-parsing rendered text | — |
-| 10-22 17:05 | #293 | fix(coding-agent): preserve task-state prompt cache prefixes | **强相关** |
-| 10-23 13:32 | #289 | feat(cli): add -C/--cwd flag to set the working directory explicitly | — |
-| 10-23 13:33 | #285 | fix(cli): save model selection as default on Enter | — |
-| 10-23 13:42 | #296 | fix(coding-agent): keep the tool block stable across plan mode | 方法同向 |
-| 10-23 14:23 | #298 | fix(coding-agent): settle extension command turns before returning | — |
-| 10-23 14:28 | #297 | feat(coding-agent): make a feedback report investigable | — |
+| 时间（+08） | PR | 修改内容 | 昇腾适配 | 说明 |
+|---|---|---|---|---|
+| 10-08 10:35 | #211 | 请求头加 StepCode 应用标识 | 不需要 | 仅 HTTP 元数据，不改 prompt/采样 |
+| 10-08 15:57 | #212 | 技能目录发现扩展到 ~/.claude、.claude、~/.stepcode | 不需要 | 本地文件发现，不触推理 |
+| 10-08 16:24 | #195 | 命令失败可恢复并保留会话状态 | 不需要 | Agent 会话容错层 |
+| 10-08 16:25 | #203 | 让 Ultracode 模式可被发现 | 不需要 | CLI 可发现性 |
+| 10-08 16:29 | #222 | 新增远程 Step Plan 登录 | 不需要 | 认证流程，不进请求体 |
+| 10-08 16:36 | #217 | edit_file/write_file 后加 then_run 校验 | 不需要 | 工具链校验流程 |
+| 10-09 14:24 | #223 | StepPage 自动准备、插件误报与终端 PATH 持久化修复 | 不需要 | 环境/安装层 |
+| 10-09 15:10 | #226 | 会话列表与续接按 header cwd 限定作用域 | 不需要 | 会话管理 |
+| 10-09 16:14 | #225 | 工具结束时刷新 TUI 工作状态 | 不需要 | 纯 TUI |
+| 10-09 20:30 | #227 | 子 Agent 链式任务返回最终结果、标记未启动步骤 | 不需要 | 编排层，不改推理请求 |
+| 10-09 20:46 | #229 | 后台泳道不再闪烁或灌满对话记录 | 不需要 | 纯 TUI |
+| 10-10 10:43 | #230 | 后台泳道结束时唤醒空闲父会话 | 不需要 | 编排调度 |
+| 10-10 14:35 | #233 | 后台结果及时、完整投递 | 不需要 | 编排结果聚合 |
+| 10-10 16:30 | #234 | /effort 收敛为唯一思考等级命令，Enter 即保存 | 不需要 | effort 只是请求参数，昇腾侧按 reasoning_effort 透传即可 |
+| 10-11 12:02 | #235 | 新增 Full Access 并简化权限层级 | 不需要 | 权限模型，与推理无关 |
+| 10-11 12:04 | #232 | **CLM 改为默认的模型管理式压缩** | **需要** | 默认压缩会改写工作上下文 → 首 token 位置与前缀键变化；昇腾侧须按此复核命中率（`kv_pool/ascend_store/pool_scheduler.py:121`） |
+| 10-12 12:05 | #241 | 不再重复 Ultracode 能力提示 | 不需要 | 提示文案 |
+| 10-12 12:11 | #244 | SKILL.md frontmatter 诊断可读化 | 不需要 | 本地诊断 |
+| 10-12 12:28 | #243 | Windows 下发现原生 Git Bash 而非 WSL | 不需要 | shell 探测 |
+| 10-12 15:04 | #245 | Ultracode 模式按会话持久化 | 不需要 | 会话状态 |
+| 10-12 15:29 | #246 | 重复共享技能目录的启动冲突静默化 | 不需要 | 本地文件 |
+| 10-14 18:02 | #249 | workflow 生命周期/并发/重试加固，错误结构化 | 不需要 | 编排层，只影响 Agent 调度 |
+| 10-14 18:06 | #248 | then_run 改走 run_command | 不需要 | 工具调用路由 |
+| 10-15 11:22 | #250 | 补仓库结构与贡献指南 | 不需要 | 文档 |
+| 10-15 14:04 | #252 | StepFun 聊天模型一律使用 system 消息 | 不需要 | 影响调官方托管 API 的协议；本项目走本地 serving，无需适配 |
+| 10-15 17:21 | #254 | 固定内部 PR review 规则 | 不需要 | 仓库治理 |
+| 10-16 11:35 | #251 | usage 增加 Overview/Account/Status 面板 | 不需要 | 统计展示 |
+| 10-16 11:39 | #242 | 新增工具可用性与独立任务 review | 不需要 | 编排与检查 |
+| 10-16 11:42 | #255 | **保留上下文预算与摘要工具身份** | **需要** | 预算参与请求组装、工具身份进入摘要键；昇腾侧须核对 `summary_cache` 的键与前缀对齐（`vllm/models/step5/sparse_attention.py:1242-1251`） |
+| 10-19 16:38 | #262 | 移除（标题仅 remove） | 不需要 | 无有效改动 |
+| 10-19 19:14 | #261 | 在 API key 之外存储并刷新账户 session | 不需要 | 认证 |
+| 10-19 19:38 | #266 | 新增 SQLite 会话搜索索引 | 不需要 | 会话检索 |
+| 10-19 20:09 | #265 | 清除 Markdown 中的上游品牌残留 | 不需要 | 文档 |
+| 10-19 21:07 | #267 | **追加式轮次保留 live-context notices** | **需要** | 决定只追加请求的提示位置/时间戳是否不变 → 前缀缓存命中前提；昇腾侧命中率验证须按此口径 |
+| 10-20 14:49 | #259 | 模型选择器显示最近使用模型 | 不需要 | 纯 CLI |
+| 10-20 14:49 | #260 | 终端会话接入飞书并镜像审批 | 不需要 | 交互渠道；不启动第二套 Agent 循环 |
+| 10-20 15:36 | #271 | 修复 Windows 扁平 zip 的更新根目录 | 不需要 | 更新器 |
+| 10-20 16:47 | #268 | 新增 /btw 一次性旁问 | 不需要 | CLI 功能 |
+| 10-20 17:13 | #273 | 补贡献指南 | 不需要 | 文档 |
+| 10-20 19:49 | #274 | TUI 显示终端页签状态并简化工具错误 | 不需要 | 纯 TUI |
+| 10-21 11:35 | #275 | 工具行内 run_command 标题缩写 | 不需要 | 纯 CLI 展示 |
+| 10-21 14:01 | #270 | Web 端对话/检查器/性能指标与账户设置（第一部分） | 不需要 | 前端功能 |
+| 10-21 17:35 | #282 | 模型自选前台/后台泳道 | 不需要 | 编排策略 |
+| 10-21 17:35 | #283 | workflow 的 phase() 误用直接报错 | 不需要 | 编排校验 |
+| 10-21 17:40 | #284 | 压缩流不完整时重试并报告有效失败预算 | 需评估 | 长会话压缩的失败面与预算指标同类；建议把「压缩失败可重试」写成昇腾侧多轮 rollout 的验收项 |
+| 10-21 17:41 | #279 | find_files 收窄搜索不再丢弃方括号路径 | 不需要 | 工具实现 |
+| 10-21 17:42 | #277 | 更新失败信息包含安装器输出 | 不需要 | 更新器 |
+| 10-21 17:42 | #278 | 搜索结果改为结构化解析而非重解析渲染文本 | 不需要 | 工具实现 |
+| 10-22 17:05 | #293 | **保留 task-state 的 prompt cache 前缀** | **需要** | 直接是前缀缓存契约：task-state 追加不得破坏已缓存前缀；昇腾侧 `prefix_match_unit` 须为 sparse region 的整数倍否则直接报错 |
+| 10-23 13:32 | #289 | 新增 -C/--cwd 显式工作目录 | 不需要 | 纯 CLI |
+| 10-23 13:33 | #285 | Enter 保存模型选择为默认 | 不需要 | 纯 CLI |
+| 10-23 13:42 | #296 | plan mode 下工具块保持稳定 | 需评估 | 同属「稳定前缀」一类（工具块不重排）；可作为 P1-3 前缀稳定性对照用例 |
+| 10-23 14:23 | #298 | 扩展命令轮次先结算再返回 | 不需要 | CLI 生命周期 |
+| 10-23 14:28 | #297 | 反馈报告可调查 | 不需要 | 遥测/诊断 |
 
-表注：共 54 个 PR，对应区间内 107 条提交（30 merge / 77 非 merge）；相关性仅标注前缀/上下文与压缩两类，其余为 CLI/TUI/会话/仓库治理，均与 Step5 推理无关；PR 号拼 `https://github.com/stepfun-ai/Step-Code/pull/<号>` 访问；10-05→10-20 窗口的逐提交 SHA 清单见 `../2026-10-20/Step-Code-commits-20261005-20261020.tsv`。
+表注：共 54 个 PR，对应区间内 107 条提交（30 merge / 77 非 merge）。「昇腾适配」的判据是**是否影响本项目的推理请求形态或度量口径**：**需要**＝改动改变请求前缀稳定性或上下文/压缩语义，昇腾侧要复核命中率、缓存键或对齐约束（4 条：`#232`、`#255`、`#267`、`#293`）；**需评估**＝同类问题可能要补验收口径（2 条：`#284`、`#296`）；**不需要**＝CLI/TUI/会话/认证/文档/更新器等产品层，与 Step5 推理引擎和昇腾适配无交集（48 条）。PR 号拼 `https://github.com/stepfun-ai/Step-Code/pull/<号>` 访问；10-05→10-20 窗口的逐提交 SHA 清单见 `../2026-10-20/Step-Code-commits-20261005-20261020.tsv`。
 **请求流程**：
 
 ```text
