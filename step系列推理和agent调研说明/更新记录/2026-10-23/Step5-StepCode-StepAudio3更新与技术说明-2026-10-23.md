@@ -7,7 +7,7 @@
 > **同期生态基线**（来自本仓其他跟踪目录，10-23 核对）：vLLM `19c0e170d2`（部分专项 `432b1003f8ea`）、vLLM-Ascend `db8836752`、SGLang `f4a2df3dac`。
 > **本项目**：工作区 `C:\Users\w00899129\step5`。文中"本项目路径"均相对该工作区，除标注「未找到」外已在本地检出中逐条实测存在；这些私有检出**不随本仓库分发**。
 > **方法边界**：公开 API/仓库/文档核查 + 本项目本地源码实测。**未**做真机推理、性能复测、昇腾算子数值验证；未修改任何业务代码。PR 号可直接拼 `https://github.com/<org>/<repo>/pull/<号>` 访问。
-> **主线定位**：全文按两条主线展开——**RL 场景的推理侧**（rollout 采集与 replay、训推数值一致性、权重更新、推理引擎适配表现）与 **Agent 侧**（Step-Code 会话、子 Agent 编排、上下文/前缀治理）。Step 5 Preview 官方技术文档与 StepAudio 3 只作口径与边界记录（见 1.5），不构成主线结论。
+> **主线定位**：全文按两条主线展开——**RL 场景的推理侧**（以 Step 5 的引擎改动与 RL 专属关注点为载体，见 1.2 与 2.6）与 **Agent 侧**（Step-Code 会话、子 Agent 编排、上下文/前缀治理）。Step 5 Preview 官方技术文档与 StepAudio 3 只作口径与边界记录（见 1.4），不构成主线结论；batch 一致性 / DSA 索引回放 / LoRA 等生态线不在本文记录，由本仓各跟踪目录（`batch-consistency-weekly/`、`dsa-index-replay/`、`lora-progress-tracking/`、`rl-replay-consistency/`）维护。
 
 ---
 
@@ -26,9 +26,15 @@
 
 > 口径提示：`stepfun-ai/vllm` 的 `main` HEAD 是 `b372ad3e90`（2026-05-28），比 `step-5-preview-tracking` 的 10-10 **更旧**——判断 Step5 分支新旧必须按分支看。
 
-## 1.2 RL 推理侧（一）：vLLM `step-5-preview-tracking` 的推理引擎改动
+## 1.2 RL 推理侧：Step 5 在 `step-5-preview-tracking` 上的推理引擎改动
 
-区间内新增提交仅 `e177c621` / PR #30（10-10 16:48:44）。它不是"只改设备白名单"，以下 5 条可按行号在 `upstream-step5-reference`（= `e177c621` 同版本）逐行对上，并标出各自落在 rollout 推理的哪一环：
+这个分支本身就是 **Step5 专属实现**（代码全部在 `vllm/models/step5/**`，不含通用功能），区间内新增提交仅 `e177c621` / PR #30（10-10 16:48:44）。先给 Step5-Preview 的结构要点，再看这条提交改了它的哪一环：
+
+- **结构**：稀疏 MoE，95 层 = 92 主干 + 3 层 MTP；352 专家；FP8 block-wise 量化；上下文 1M。
+- **注意力**：SWA 层（局部滑窗）+ 稀疏全局层（DSA），DSA 带 summary cache sidecar，按 region 打分选 top-k 后读 KV。
+- **rollout 相关能力**：MTP ≤ 3（多 token 验证）、CUDA graph 可捕获、reasoning/tool parser。
+
+以下 5 条按行号在 `upstream-step5-reference`（= `e177c621` 同版本）逐行可对上，并标出各自落在 Step5 rollout 推理的哪一环：
 
 | # | 改动（行号可对上） | RL 推理环节 |
 |---|---|---|
@@ -53,51 +59,68 @@
   → Agent 宿主执行工具并回传
 ```
 
-## 1.3 RL 推理侧（二）：生态同期变化（batch 一致性 / replay / LoRA / 权重更新）
+## 1.3 Agent 侧：Step-Code 提交与逻辑
 
-表中的「RL 链路环节」按本仓六特性口径标注：M 采样掩码、I 索引回放、R 专家回放（R3）、H 隐状态、L Logprob、B batch 一致性；权重更新与推理引擎表现单列。
+Step-Code 是本区间**唯一持续更新**的对象。下表按合并时间（北京时间）列出 10-05 → 10-23 的**全部合入 PR**，不按 10-20 分段。
 
-| 生态 | 社区更新（10-05→10-23） | RL 链路环节 | 对本项目的含义 |
+| 时间（+08） | PR | 标题（原文） | 与本项目相关性 |
 |---|---|---|---|
-| vLLM 主线 | Inductor BI 开关进主线 #61118（10-17）、BI 验证名单扩容 #61254、cooperative TopK 溢出改精确选择 #59645 | B | rollout 与训练的数值漂移收敛，但 DeepSeek-V4 的 0-diff 未进主线 |
-| vLLM 主线 | **Step5（文本 + VL）LoRA 合入 #62498** | 权重更新（LoRA 热更新） | Step5 生态在扩；本项目 `vllm_ascend/lora` 尚无 MLA 处理，需评估是否跟进 |
-| vLLM 主线（未合入） | DeepSeek-V4 拆分专项 #60442~#60454、#59925/#59929 与 #60074 仍 Open | B / R 契约 | V4 0-diff 未进主线，相关契约仍在变 |
-| vLLM 主线（未合入） | DSA index replay #49555 仍 Draft；新增 #62915 Profile-based indexer replay（10-21 前后，57 文件） | I | 索引采集返回**两条路线并存、收敛未定**，不能按单一实现排期 |
-| vllm-ascend | 窗口内 **151 个合入**，集中在 V4.1 bounded replay（跨 runner/PCP）、PCP 图回放 padding、GDN 状态索引与 MTP 正确性；#19220 DSpark 双向 SparseFlashMla、#19190 层间 O-projection buffer 共享、#19491 移除旧 DSA-CP 文档；**LoRA 零改动** | I / B 的正确性地基 | 图回放与并行组合的地基变厚，但 BI/LoRA 限制未解除、DSA 采集返回仍缺 |
-| SGLang | 21 部分堆叠 LoRA runtime stack 以 #45892 于 10-23 合入 main；NPU 确定性算法 #45063、动态 batch 贪心标志 #44923 | 权重更新 / B | SGLang 侧走向可参照，Ascend 侧尚无等价实现 |
-| verl | #8025 rollout/actor logprob mismatch 指标已合入 | L（训推偏差度量） | NPU 接入等价指标是当下可开工项（见 2.4 P0-2） |
+| 10-08 10:35 | #211 | fix: add StepCode app attribution headers | — |
+| 10-08 15:57 | #212 | fix(skills): discover ~/.claude/skills, .claude/skills and ~/.stepcode/skills | — |
+| 10-08 16:24 | #195 | fix(coding-agent): recover command failures and preserve session state | — |
+| 10-08 16:25 | #203 | fix(coding-agent): make Ultracode mode discoverable | — |
+| 10-08 16:29 | #222 | feat: add remote Step Plan login | — |
+| 10-08 16:36 | #217 | feat: add then_run verification to edit_file and write_file | — |
+| 10-09 14:24 | #223 | fix: 修复 StepPage 自动准备、插件误报和终端 PATH 持久化 | — |
+| 10-09 15:10 | #226 | fix: scope session listing and continue to the header cwd | — |
+| 10-09 16:14 | #225 | fix(tui): refresh working status when tools finish | — |
+| 10-09 20:30 | #227 | fix(subagent): return the chain's final result and mark unstarted steps | — |
+| 10-09 20:46 | #229 | fix(subagent): stop background lanes from flickering and flooding the transcript | — |
+| 10-10 10:43 | #230 | fix(subagent): wake an idle parent when a background lane settles | — |
+| 10-10 14:35 | #233 | fix(subagent): deliver background lane results promptly and in full | — |
+| 10-10 16:30 | #234 | feat(cli): keep /effort as the only thinking-level command and save on Enter | — |
+| 10-11 12:02 | #235 | feat: add Full Access and simplify permission tiers | — |
+| 10-11 12:04 | #232 | feat(compaction): use model-managed CLM by default | **强相关** |
+| 10-12 12:05 | #241 | fix: stop repeating Ultracode capability reminders | — |
+| 10-12 12:11 | #244 | fix(skills): readable, actionable SKILL.md frontmatter diagnostics | — |
+| 10-12 12:28 | #243 | fix(shell): discover native Git Bash on Windows instead of WSL | — |
+| 10-12 15:04 | #245 | feat: persist Ultracode mode per session | — |
+| 10-12 15:29 | #246 | fix(skills): quiet startup skill conflicts for duplicated shared skill dirs | — |
+| 10-14 18:02 | #249 | fix: harden workflow lifecycle, concurrency, and retries with structured errors | — |
+| 10-14 18:06 | #248 | fix: route then_run through run_command | — |
+| 10-15 11:22 | #250 | docs: add repository structure and contributor guidelines | — |
+| 10-15 14:04 | #252 | fix: always use system messages for StepFun chat models | — |
+| 10-15 17:21 | #254 | chore: define fixed internal pull request reviews | — |
+| 10-16 11:35 | #251 | feat(usage): add Overview, Account, and Status panels | — |
+| 10-16 11:39 | #242 | feat: add tool availability and standalone task review | — |
+| 10-16 11:42 | #255 | fix: preserve context budgets and summary tool identity | **强相关** |
+| 10-19 16:38 | #262 | remove | — |
+| 10-19 19:14 | #261 | feat(step): store and refresh an account session beside the API key | — |
+| 10-19 19:38 | #266 | feat(coding-agent): add SQLite session search index | — |
+| 10-19 20:09 | #265 | docs: remove residual upstream branding across all Markdown docs | — |
+| 10-19 21:07 | #267 | fix(context): retain live-context notices across append-only turns | **强相关** |
+| 10-20 14:49 | #259 | feat(cli): show recent models in the model selector | — |
+| 10-20 14:49 | #260 | feat(coding-agent): connect terminal sessions to Lark with mirrored approvals | — |
+| 10-20 15:36 | #271 | fix(step): resolve update archive root for flat Windows zips | — |
+| 10-20 16:47 | #268 | feat(cli): add /btw for one-shot side questions | — |
+| 10-20 17:13 | #273 | docs(contributing): add project contribution guide | — |
+| 10-20 19:49 | #274 | feat(tui): show terminal tab status and simplify tool errors | — |
+| 10-21 11:35 | #275 | fix(cli): abbreviate run_command titles in Step tool rows | — |
+| 10-21 14:01 | #270 | feat(web): improve conversation, inspectors, performance metrics and account settings (part 1) | — |
+| 10-21 17:35 | #282 | feat(subagent): let the model choose foreground or background lanes | — |
+| 10-21 17:35 | #283 | fix(workflow): reject phase() misuse instead of silently running no agents | — |
+| 10-21 17:40 | #284 | fix(compaction): retry incomplete streams and report effective failure budgets | 方法同向 |
+| 10-21 17:41 | #279 | fix(step): stop dropping bracket-prefixed paths in narrowed find_files searches | — |
+| 10-21 17:42 | #277 | fix(step): include installer output in update failure messages | — |
+| 10-21 17:42 | #278 | fix(step): resolve search rows structurally instead of re-parsing rendered text | — |
+| 10-22 17:05 | #293 | fix(coding-agent): preserve task-state prompt cache prefixes | **强相关** |
+| 10-23 13:32 | #289 | feat(cli): add -C/--cwd flag to set the working directory explicitly | — |
+| 10-23 13:33 | #285 | fix(cli): save model selection as default on Enter | — |
+| 10-23 13:42 | #296 | fix(coding-agent): keep the tool block stable across plan mode | 方法同向 |
+| 10-23 14:23 | #298 | fix(coding-agent): settle extension command turns before returning | — |
+| 10-23 14:28 | #297 | feat(coding-agent): make a feedback report investigable | — |
 
-## 1.4 Agent 侧：Step-Code 提交与逻辑
-
-Step-Code 是本区间**唯一持续更新**的对象。日期以进入 `main` 的时间为准。
-
-| 时间（+08） | 提交 / PR | 变化与逻辑 | 与本项目相关性 |
-|---|---|---|---|
-| 10-08 | #222、#217 | 远程 Step Plan 登录；`then_run` 动作衔接（远程终端认证与动作执行衔接） | 无 |
-| 10-09～10-10 | #227、#230、#233 | 后台子 Agent 结果、父会话唤醒与通知修复：链式任务返回最后结果，后台结束唤醒父会话，通知携带完整结果 | 无 |
-| 10-10～10-11 | #234、#235、#232 | `/effort` 统一；Full Access；CLM 成为默认压缩方式（推理强度入口、权限层级、长会话上下文维护） | 方法同向（上下文成本） |
-| 10-12 | #245、#241、#243 | Ultracode 会话状态持久化；Windows Git Bash 与 Skills 诊断修复（会话恢复后不丢编排模式） | 无 |
-| 10-14 | #249、#248 | workflow 生命周期、并发、重试与恢复；`then_run` 走 `run_command`（取消先排空子任务、共享并发准入、区分限流与额度耗尽） | 无 |
-| 10-15～10-16 | #252、#251、#242 | system role 兼容；usage/status；独立任务 review 与工具可用性（协议兼容、消耗观测、任务检查） | 无 |
-| 10-19 | #267、#266、#261 | 稳定 live-context notices；SQLite 会话搜索；session 刷新（保护追加式前缀稳定、会话检索、认证续期） | 方法同向（前缀稳定） |
-| 10-20 | #260、#259、#268、#274、#271 | 飞书连接与镜像审批、最近模型、`/btw`、终端状态与 Windows 更新修复 | 无 |
-| 10-21 10:57 | `1ccfa0819d` | `fix(cli)`：命令预览按终端宽度自适应 | 无（UI） |
-| 10-21 11:35 | `7ae808a7b9` | Merge #275 | — |
-| 10-21 17:32 | `143a9d232a` | `fix(compaction)`：未完整流重试 + 持久化安全失败诊断 | 方法同向（压缩失败面） |
-| 10-21 17:35 | `118348c05c` | `feat(subagent)`：模型自选前台/后台泳道（#282） | 无 |
-| 10-21 17:35 | `993e714243` | `fix(workflow)`：`phase()` 误用直接报错（#283） | 无 |
-| 10-21 17:40/17:41 | `9cc8064` / `8d98d4b` | Merge #284 / #279 | — |
-| 10-21 17:42 | `84a16c90ad` | `fix(step)`：搜索结果按结构解析（#278） | 无（TUI） |
-| 10-21 17:42 | `dff413f436` | `fix(step)`：更新失败信息含安装器输出（#277） | 无 |
-| 10-22 16:44 / 17:05 | `50aad0a962` / `3de15c1659` | `fix(coding-agent)`：**保留 task-state prompt cache 前缀**（#293） | **强相关**：前缀稳定是 prefix cache 命中前提 |
-| 10-23 13:32 | `b0a129753d` | `feat(cli)`：`-C/--cwd`（#289） | 无 |
-| 10-23 13:33 | `29b02e1ac1` | `fix(cli)`：Enter 保存模型选择为默认（#285） | 无 |
-| 10-23 13:42 | `a749d471de` | `fix`：plan mode 下工具块保持稳定（#296） | 无（稳定前缀一类） |
-| 10-23 14:23 | `a12325d322` | `fix`：扩展命令轮次先结算（#298） | 无 |
-| 10-23 14:28 | `81e79bc4b6` | `feat`：反馈报告可调查（#297） | 无 |
-
-表注：10-20 之前按日期区间汇总（91 条提交 / 27 merge / 64 非 merge），10-20 之后逐条列出（16 条 / 13 非 merge）；同一时段内的 PR 号可拼 `https://github.com/stepfun-ai/Step-Code/pull/<号>` 访问。
-
+表注：共 54 个 PR，对应区间内 107 条提交（30 merge / 77 非 merge）；相关性仅标注前缀/上下文与压缩两类，其余为 CLI/TUI/会话/仓库治理，均与 Step5 推理无关；PR 号拼 `https://github.com/stepfun-ai/Step-Code/pull/<号>` 访问；10-05→10-20 窗口的逐提交 SHA 清单见 `../2026-10-20/Step-Code-commits-20261005-20261020.tsv`。
 **请求流程**：
 
 ```text
@@ -113,7 +136,7 @@ Step-Code 是本区间**唯一持续更新**的对象。日期以进入 `main` �
 
 **飞书边界**：`/connect lark` 把消息与审批映射到当前终端会话，第一个合法审批生效；**不启动第二套 Agent 循环**，不是后台常驻服务，也不新增语音处理能力。
 
-## 1.5 非主线：文档口径与边界
+## 1.4 非主线：文档口径与边界
 
 - **Step 5 Preview 技术文档**（10-15 *Inside Step 5 Preview*）：92 层窄深设计、SWA + Sparse GQA 降长上下文成本、**训推数值对齐与异步轨迹重放降 RL 偏差**、MTP/FP8/EP/KV 管理提升 rollout 效率、压缩进训练。这是本文两条主线的背景说明，不单独构成结论。**口径差异必须保留**：官方 README 写最大输出可至 1M（输入输出共享总上下文预算），API 模型页仍列 64k；线上按 endpoint 实际限制。
 - **StepAudio 3（不在本文主线内）**：区间内只有 Realtime 论文 v3 修订（10-12），仍无独立三代推理仓；旧仓名与 TTS-3B 的"3B"不能作为三代已开源证据。Step-Code provider 过滤语音类型，**语音驱动编程属可选的自行桥接方案，不是仓库已实现能力**；本文不展开。
@@ -191,7 +214,7 @@ trace replay 固定 decode 历史 → eager vs graph、BS1/BSN、同图档/跨�
 **P2-2 cann-ops 版本锁定**
 `requirements*` 与镜像 Dockerfile 中 pin `IndexerRegionScore` / `GenericBlockSparseAttention` 接口版本 + 签名前检。
 
-**P2-3 LoRA 与 Step5 组合评估（新增，源自 1.4）**
+**P2-3 LoRA 与 Step5 组合评估（新增）**
 vLLM 侧 Step5 LoRA 已合入 #62498，而本项目 `vllm_ascend/lora` 无任何 MLA 处理、replay 遇 LoRA 关闭、PCP LoRA 仍 `NotImplementedError`。验收：给出"Step5 + LoRA 在 A2 是否可行"的明确结论（可行/需立项/不支持）。
 
 ---
