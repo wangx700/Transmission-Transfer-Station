@@ -3,6 +3,7 @@
 资料日期：2026-10-22。本文基于本地 verl/SGLang、VIME、vLLM、vLLM-Ascend 分支代码阅读，shape 和坐标为指定配置下的推导，不代表本文新增完成了多卡真机验证。
 
 - [NaN probe 逐步操作示例](nan-probe-example.md)
+- [NaN probe 实现原理与方法替换总结](nan-probe-principle.md)
 - [verl + SGLang 修正版流程与接口代码](verl-sglang-flow-and-interfaces.md)
 - [可运行的缩小版 NaN probe 示例](nan_probe_demo.py)
 - [代码证据与来源版本](evidence/README.md)
