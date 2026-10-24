@@ -6,6 +6,7 @@
 - [NaN probe 实现原理与方法替换总结](nan-probe-principle.md)
 - [verl + SGLang 修正版流程与接口代码](verl-sglang-flow-and-interfaces.md)
 - [verl + vLLM/SGLang 的CUDA IPC拓扑与适配分支说明](verl-vllm-sglang-ipc-topology.md)
+- [verl + SGLang / vLLM完整同步时序图与接口说明](verl-sglang-vllm-sequence.md)
 - [可运行的缩小版 NaN probe 示例](nan_probe_demo.py)
 - [代码证据与来源版本](evidence/README.md)
 

@@ -2,6 +2,8 @@
 
 核对日期：2026-10-24。基于本地代码阅读；未新增部署或多卡验证。本文讨论delta_sharded增量路径，不将框架其他同步路径的能力混入。
 
+两套从训练到推理的完整流程见：[verl + SGLang / vLLM时序图与接口说明](verl-sglang-vllm-sequence.md)。
+
 ## 1. 结论：是共卡，但不必是训练actor与推理模型共卡
 
 **这条路径的IPC两端，是verl rollout侧接收/转发进程与推理worker。它们按同一物理GPU配对部署。** 训练actor可以在另一组GPU、另一台机器上，数据先通过NCCL传到rollout侧，再在推理所在机器使用本地IPC。
