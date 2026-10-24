@@ -1,0 +1,842 @@
+diff --git a/docker/npu_patch/README.md b/docker/npu_patch/README.md
+index 83fe99db..802ebb13 100644
+--- a/docker/npu_patch/README.md
++++ b/docker/npu_patch/README.md
+@@ -2,6 +2,16 @@
+ 
+ This guide provides instructions for installing Vime with NPU support, including the required dependencies and patches.
+ 
++Sparse HCCL reuses both native #18915 engines, fixed at `f6ad8bd5`, without
++rewriting their transfer methods. Select `delta + sparse_hccl` and inference
++PP=1; training PP remains supported. Seed and deltas use Megatron-Bridge and
++public sparse patches. The first sync sends full int32 coordinates and values;
++there is no dense flag or `send_dense_weight_chunk` in this protocol.
++The sparse path has no VIME direct exporter or Ascend MoE direct writes.
++Use unquantized ND weights, disable EPLB, and keep
++`--update-weight-delta-verify-every 0`. Single checkpoint tensors must contain
++fewer than `2**31` elements. Install both dependency patches together.
++
+ ## Component Version Mapping
+ 
+ | Component | Version/Commit | Source |
+@@ -15,6 +25,9 @@ This guide provides instructions for installing Vime with NPU support, including
+ | MindSpeed | `fc63de5c48426dd019c3b3f39e65f5bdf56e4086` | [GitCode](https://gitcode.com/Ascend/MindSpeed) |
+ | torch_memory_saver (NPU) | `sgl-kernel-npu` tag `2026.6.0` | [GitHub](https://github.com/sgl-project/sgl-kernel-npu) |
+ 
++Table note: versions above are installation pins, not a claim that a fresh image
++was rebuilt for each runtime measurement.
++
+ ## Preparing the Running Environment
+ 
+ Run the following steps inside the base image listed above, with the Ascend devices and host driver mounted. The base image provides Python, CANN, PyTorch, torch-npu, vLLM and vLLM-Ascend.
+diff --git a/docker/npu_patch/vllm-ascend.patch b/docker/npu_patch/vllm-ascend.patch
+index c9a43645..c923094c 100644
+--- a/docker/npu_patch/vllm-ascend.patch
++++ b/docker/npu_patch/vllm-ascend.patch
+@@ -1,6 +1,5 @@
+ diff --git a/examples/rl/rlhf_sparse_hccl.py b/examples/rl/rlhf_sparse_hccl.py
+ new file mode 100644
+-index 000000000..a17e08486
+ --- /dev/null
+ +++ b/examples/rl/rlhf_sparse_hccl.py
+ @@ -0,0 +1,124 @@
+@@ -130,7 +129,6 @@ index 000000000..a17e08486
+ +    main()
+ diff --git a/tests/e2e/pull_request/eight_card/test_sparse_hccl_checkpoint.py b/tests/e2e/pull_request/eight_card/test_sparse_hccl_checkpoint.py
+ new file mode 100644
+-index 000000000..d7229417b
+ --- /dev/null
+ +++ b/tests/e2e/pull_request/eight_card/test_sparse_hccl_checkpoint.py
+ @@ -0,0 +1,312 @@
+@@ -486,7 +484,6 @@ index 000000000..5d6e53f8b
+ +
+ diff --git a/tests/ut/distributed/weight_transfer/test_sparse_hccl_engine.py b/tests/ut/distributed/weight_transfer/test_sparse_hccl_engine.py
+ new file mode 100644
+-index 000000000..ba24d393a
+ --- /dev/null
+ +++ b/tests/ut/distributed/weight_transfer/test_sparse_hccl_engine.py
+ @@ -0,0 +1,122 @@
+@@ -565,8 +562,8 @@ index 000000000..ba24d393a
+ +        patch("vllm_ascend.worker.v2.utils.torch_cuda_wrapper", return_value=nullcontext()) as wrapper,
+ +        patch("torch.cuda.current_stream", return_value=stream),
+ +        patch("torch.cuda.is_available", return_value=False),
+-+        patch("torch.npu.is_available", return_value=True),
+-+        patch("torch.npu.current_stream", return_value=stream),
+++        patch.object(torch.npu, "is_available", return_value=True),
+++        patch.object(torch.npu, "current_stream", return_value=stream),
+ +    ):
+ +        engine._broadcast_chunk([empty] if empty_only else [empty, full])
+ +    if empty_only:
+@@ -991,10 +988,9 @@ index a35d9af8d..d55c988c3 100644
+              "shapes": shapes,
+ diff --git a/vllm_ascend/distributed/weight_transfer/sparse_hccl_engine.py b/vllm_ascend/distributed/weight_transfer/sparse_hccl_engine.py
+ new file mode 100644
+-index 000000000..fab25f7a8
+ --- /dev/null
+ +++ b/vllm_ascend/distributed/weight_transfer/sparse_hccl_engine.py
+-@@ -0,0 +1,160 @@
++@@ -0,0 +1,163 @@
+ +# SPDX-License-Identifier: Apache-2.0
+ +# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+ +"""HCCL transport for upstream sparse weight transfer engines."""
+@@ -1122,14 +1118,17 @@ index 000000000..fab25f7a8
+ +            world_size=init_info.world_size,
+ +        )
+ +
+-+        # Trainer and workers must enter HCCL initialization concurrently.
+-+        with ThreadPoolExecutor(max_workers=1) as exe:
+-+            future = exe.submit(
+-+                engine.client.init_weight_transfer_engine,
+-+                asdict(worker_init_info),
+-+            )
+-+            engine.model_update_group = HCCLWeightTransferEngine.trainer_init(asdict(init_info))
+-+            future.result()
+++        with ExitStack() as cleanup:
+++            cleanup.callback(engine.shutdown)
+++            # Trainer and workers must enter HCCL initialization concurrently.
+++            with ThreadPoolExecutor(max_workers=1) as exe:
+++                future = exe.submit(
+++                    engine.client.init_weight_transfer_engine,
+++                    asdict(worker_init_info),
+++                )
+++                engine.model_update_group = HCCLWeightTransferEngine.trainer_init(asdict(init_info))
+++                future.result()
+++            cleanup.pop_all()
+ +
+ +        return engine
+ +
+diff --git a/docs/en/advanced/delta-weight-sync.md b/docs/en/advanced/delta-weight-sync.md
+index 7c41a10a..7fc6d313 100644
+--- a/docs/en/advanced/delta-weight-sync.md
++++ b/docs/en/advanced/delta-weight-sync.md
+@@ -7,8 +7,9 @@ every sync is the dominant cost.
+ 
+ Two transports are available: `disk` for shared-storage and cross-cluster deployments, and
+ `sparse_hccl` for online transfer between Ascend trainers and vLLM-Ascend rollout workers.
+-Sparse HCCL bootstraps with complete values over dense HCCL, then sends only
+-changed indices and values on later syncs using the same communication group.
++Sparse HCCL uses the two native engines from vLLM-Ascend #18915. The first sync
++sends every checkpoint coordinate through the public sparse protocol; later syncs
++send only changed coordinates. Both seed and deltas are exported through Megatron-Bridge.
+ 
+ ## Configuration
+ 
+@@ -21,24 +22,17 @@ Sparse HCCL:
+ --update-weight-delta-verify-every 0
+ ```
+ 
+-This path requires non-colocated execution and unquantized rollout weights; TP2/PP2/EP2 requires the matching vLLM-Ascend sparse receiver.
+-The gather trigger is based only on globally ordered parameter-row counts, keeping collective
+-order identical on every Megatron rank. Keep `verify-every` at zero: the native
+-receiver does not expose a rank-local verification option, and nonzero values are rejected.
++This path requires non-colocated, unquantized ND rollout weights and inference
++PP=1, with EPLB disabled. Configure `--vllm-pipeline-parallel-size 1`.
++The native receiver handles TP/DP/EP loading; inference PP>1 is rejected before
++communication initialization. Training-side PP/TP/EP export remains supported.
++Keep `verify-every` at zero because the native receiver has no rank-local verifier.
+ 
+-Parallel rollout:
+-
+-The NPU image patch includes the `sparse_hccl` receiver registration and modules.
+-All receivers consume every broadcast before filtering PP-owned layers. The native
+-checkpoint loader handles TP slicing, fused parameters and expert placement; an
+-exception-safe temporary view restores Ascend MoE checkpoint orientation while loading.
+-Trainer payloads use actual-length P2P aggregation to rank zero; rollout payloads are still broadcast;
+-PP/EP ownership filtering does not imply rank-targeted network traffic.
+-
+-For Qwen3-30B-A3B with training and rollout TP2/PP2/EP2, use
+-`scripts/run-qwen3-30B-A3B-sparse-hccl.sh`. Set `MODEL_PATH`,
+-`PROMPT_DATA_PATH`, and the dependency `PYTHONPATH` for your environment. The script
+-uses four training and four rollout devices with native receiver verification disabled.
++The script `scripts/run-qwen3-30B-A3B-sparse-hccl.sh` uses training
++TP2/PP2/EP2 and rollout TP4/PP1/EP4, on four training plus four rollout NPUs.
++Set `MODEL_PATH`, `PROMPT_DATA_PATH`, and the matching patched dependency paths.
++VIME normalizes contiguous payloads onto the communicator device and validates
++them before invoking the unmodified trainer engine.
+ 
+ Disk transport configuration:
+ 
+@@ -66,43 +60,42 @@ Deltas are always zstd-compressed (level 1); profiling showed it dominates lz4 /
+ 
+ ### Sparse HCCL
+ 
+-1. For the first sync, the synchronization adapter reuses full mode's existing `HfWeightIteratorDirect`, the dense HCCL sender, and the public dense checkpoint loader. No index tensors or NaN staging are needed. All training ranks participate in export; only rank 0 sends. Bridge still provides the sparse export index. Neither exporter implementation changes, and this does not enable MoE direct writes. Each rank captures its local Megatron shard snapshot in host memory only after initialization completes.
+-
+-2. Later syncs bit-diff each current shard against its snapshot through an integer view, then advance the snapshot immediately.
+-3. A NaN probe maps local changes to final HF names and global flat indices. PP non-owners, DP/CP replicas, and unchanged ranks retain zero-count lockstep directory rows.
+-4. TP, EP/ETP, and PP/VPP ranks execute batched variable-length gathers over one common directory. The wire master constructs public `SparseWeightPatch` objects and sends bounded lists through `send_weight_chunk`.
+-5. The receiver validates checkpoint patches and uses native weight loaders to update live weights in place. Independent correctness tests compare reconstructed/full exports and receiver parameter hashes against dense loading. A potentially partial update failure prevents updater reuse until recovery.
+-
+-Set `VIME_SPARSE_MOE_DIRECT=1` in rollout worker environments to enable optional
+-Qwen3-MoE direct writes (default: disabled). After common validation, supported
+-BF16/ND static-EP expert patches are grouped by runtime `w13`/`w2` parameter and
+-written in inference layout. This avoids full-shape NaN staging and skips
+-nonlocal experts. Other parameters and unsupported layouts retain native loading;
+-temporary loader transpose views are entered only for that fallback. Dense seed,
+-wire payloads, sender validation, and training diff/gather are unchanged.
+-
+-Sparse transport uses the non-packed path. Every PP worker consumes all broadcasts before
+-filtering its parameters. Both image dependency patches must be installed together.
+-
+-The patched Ascend test `tests/e2e/pull_request/eight_card/test_sparse_hccl_checkpoint.py`
+-includes a `restore-normal` case. Run it with `pytest -s` and
+-`-k 'restore-normal and tp2-pp2-ep2'` on five available NPUs. It keeps an
+-independent normal checkpoint, subtracts random changes at random coordinates
+-and shard boundaries to construct a perturbed base, and restores it through
+-sparse HCCL. The sparse transfer must reproduce every worker's full parameter
+-hashes and deterministic generated tokens. Patch values are replacement target
+-values, not additive differences. This small synthetic Qwen3-MoE case checks
+-protocol correctness, not pretrained-model accuracy or performance.
+-
+-For a separate attribution run, set `VLLM_WEIGHT_TRANSFER_PROFILE=1` in both trainer
+-and rollout worker environments. `WEIGHT_TRANSFER_PROFILE` records cumulative
+-seconds and call counts for each phase and rank. Profiling synchronizes the device;
+-use a run with profiling disabled for throughput comparisons. Inclusive parent
+-phases overlap their child phases and must not be summed together; compare ranks
+-by their critical-path maximum, rather than summing worker times.
+-`receiver_apply` waits for completed device work. Its per-tensor child phases
+-ending in `_host_dispatch` measure host residence (including implicit waits)
+-without adding device synchronization; they are not isolated kernel timings.
++1. Build the export index using Megatron-Bridge. First-sync full exports also use
++   `HfWeightIteratorSparseBridge`; this sparse path does not call the direct exporter.
++2. Represent every initial checkpoint position as an int32 index and target value,
++   split by the wire byte budget, and call native `send_weight_chunk`. This seeds
++   actual training weights even after reconnecting to previously modified workers.
++   It requires full-shape NaN staging on the native receiver and costs more wire
++   bytes than a dense values-only seed.
++3. Capture local shard snapshots only after successful initialization. Later syncs
++   use bitwise diff and the real Bridge mappings with NaN probes to produce final
++   checkpoint coordinates. Ordered variable-length gather merges them on rank zero.
++4. VIME checks shape/dtype, bounds, duplicate indices and NaNs before transmission,
++   then normalizes device and contiguity. The native sender owns metadata and the
++   concurrent receive RPC/broadcast; VIME owns pause/start/finish/resume.
++5. The native receiver uses temporary checkpoint-compatible MoE views and the model's
++   original loader for TP/EP placement. There is no Ascend MoE direct-write path.
++   Values replace positions, including zero; they are not additive deltas.
++6. The current native loader's int32 boundary restriction is enforced explicitly:
++   each checkpoint tensor must contain fewer than `2**31` elements. Wire indices
++   remain int32. Input validation and dedicated correctness oracles stay enabled.
++
++Both dependency patches must be installed together. The two sparse engine classes
++and native example/test modules follow Ascend #18915 `f6ad8bd5`; pinned model code
++retains the compatible checkpoint loader-view backport. Sparse transport is unpacked.
++The native receiver does not implement inference PP filtering or VIME MoE direct writes.
++
++For an independent receiver oracle, run the dependency's
++`tests/e2e/pull_request/eight_card/test_sparse_hccl_checkpoint.py` on five available
++NPUs. It tests TP4/DP1/EP4 and TP2/DP2/EP4 and compares worker hashes and greedy
++generation against native checkpoint loading. Small synthetic tests are not 30B
++accuracy or performance measurements.
++
++`VLLM_WEIGHT_TRANSFER_PROFILE=1` records VIME adapter phases; profile runs synchronize
++devices and must be separate from throughput measurements. Gather/publish phases
++include nested work and waits, so do not add overlapping durations. Updates are
++in-place and nontransactional; a possibly partial failure prevents updater reuse
++until reconnection and full seeding. Keep generation paused after such a failure.
+ 
+ ### Disk transport
+ 
+diff --git a/docs/zh/advanced/delta-weight-sync.md b/docs/zh/advanced/delta-weight-sync.md
+index d5d1d162..02008ab6 100644
+--- a/docs/zh/advanced/delta-weight-sync.md
++++ b/docs/zh/advanced/delta-weight-sync.md
+@@ -3,8 +3,9 @@
+ Delta 权重同步只发送两次同步之间发生变化的字节，而不是每次都写一份完整 checkpoint，以此让非 colocate 的 rollout engine 保持最新。它面向大模型、跨集群或跨数据中心的训推解耦场景——这种场景下每次都写整份 actor 权重是主要开销。
+ 
+ 它支持两条传输路径：`disk` 面向跨集群共享存储，`sparse_hccl` 面向 Ascend
+-训练和 vLLM-Ascend rollout 之间的在线传输。`sparse_hccl` 首次通过 dense HCCL 发送完整值，
+-后续在同一通信组中仅发送变化位置的索引和值。
++训练和 vLLM-Ascend rollout 之间的在线传输。`sparse_hccl` 使用 #18915 的两个原生引擎；
++首次通过标准 sparse 协议发送全部 checkpoint 坐标，后续只发送变化坐标。
++首次全量导出和后续增量索引都使用 Megatron-Bridge。
+ 
+ ## 配置
+ 
+@@ -17,22 +18,15 @@ Sparse HCCL：
+ --update-weight-delta-verify-every 0
+ ```
+ 
+-该路径要求非 colocate 和未量化 rollout 权重；TP2/PP2/EP2 需要匹配的 vLLM-Ascend sparse 接收端。`batch-gather` 只按全局
+-参数目录的行数触发，保证所有 Megatron rank 的 collective 顺序一致。
+-`verify-every` 必须为零：原生接收端不提供 rank-local 写入校验选项，非零值会被明确拒绝。
++该路径要求非 colocate、未量化 ND rollout 权重、关闭 EPLB，以及推理 PP=1；
++设置 `--vllm-pipeline-parallel-size 1`。原生接收端支持 TP/DP/EP，推理 PP>1
++在建组前明确拒绝。训练侧 PP/TP/EP 导出与 gather 保留。
++`verify-every` 必须为零，原生接收端不提供 rank-local 校验接口。
+ 
+-并行 rollout：
+-
+-NPU 镜像补丁包含 `sparse_hccl` 接收端注册和模块。所有接收端先完成全部广播，再过滤
+-当前 PP stage 所属参数。原生 checkpoint loader 负责 TP 切片、融合参数和 expert 放置；
+-加载期间临时暴露 Ascend MoE 的 checkpoint 视图，并在异常或结束时恢复推理布局。
+-训练侧 payload 按真实长度 P2P 汇聚到 rank0，推理侧仍采用广播；
+-PP/EP 所属关系过滤不等于按 rank 定向传输。
+-
+-Qwen3-30B-A3B 训练和 rollout 均为 TP2/PP2/EP2 时，可使用
+-`scripts/run-qwen3-30B-A3B-sparse-hccl.sh`。按环境设置 `MODEL_PATH`、
+-`PROMPT_DATA_PATH` 及依赖的 `PYTHONPATH`。脚本使用四张训练卡和四张 rollout 卡，
+-使用原生协议，不启用接收端 rank-local 校验。
++脚本 `scripts/run-qwen3-30B-A3B-sparse-hccl.sh` 使用训练 TP2/PP2/EP2、
++推理 TP4/PP1/EP4，四张训练卡加四张推理卡。按环境设置 `MODEL_PATH`、
++`PROMPT_DATA_PATH` 和配套依赖路径。VIME 在调用原生训练引擎前完成输入校验、
++设备转换及连续化，不改写引擎的发送或接收实现。
+ 
+ 磁盘传输配置：
+ 
+@@ -60,39 +54,34 @@ delta 始终用 zstd（level 1）压缩；profiling 显示对这类数据它在
+ 
+ ### Sparse HCCL
+ 
+-1. 首次由同步适配层复用 full 模式已有的 `HfWeightIteratorDirect`，通过现有 dense HCCL 发送函数和公共 dense checkpoint loader 传输完整 Megatron→HF 导出值，不生成索引或 NaN staging。所有训练 rank 参与导出，只有 rank 0 发送。Bridge 继续用于增量索引，不修改两种导出器的实现；这与 MoE 直写无关。完成后才将各 rank 的本地 Megatron shard snapshot 保存在主机内存。
+-2. 后续同步在每个 rank 上对当前 shard 和 snapshot 做整数视图的 bit-exact diff，并立即推进 snapshot。
+-3. NaN probe 把本地变化映射成最终 HF 参数名和全局 flat index。PP 非 owner、DP/CP 重复副本和无变化 rank 仍发送 count=0 的目录行。
+-4. TP、EP/ETP、PP/VPP 按统一目录执行 batched variable-length gather；wire master 构造公共 `SparseWeightPatch`，通过 `send_weight_chunk` 发送有界列表。
+-5. 接收端校验 checkpoint patch，并通过原生 weight loader 原地更新 live weights。独立正确性测试将重建结果与 full export 比较，并将接收端完整参数摘要与 dense 加载比较。发生可能部分写入的失败后，updater 在恢复前不可复用。
+-
+-在 rollout worker 环境中设置 `VIME_SPARSE_MOE_DIRECT=1` 可启用 Qwen3-MoE
+-直写，默认关闭。公共校验通过后，支持的 BF16/ND 静态 EP 专家 patch 按 runtime
+-`w13`/`w2` 参数分组，在推理布局下直接写入，避免完整形状的 NaN staging，并跳过
+-非本地专家。其他参数及不支持的布局继续走原生 loader，仅回退加载时进入临时转置视图。
+-首次 dense seed、线上传输内容、发送端校验和训练侧 diff/gather 保持原流程。
+-
+-所有 PP worker 都消费完整广播后再过滤本 stage 参数。镜像中的两份依赖 patch 必须配套安装。
+-
+-恢复正常权重的端到端用例位于依赖 patch 中的
+-`tests/e2e/pull_request/eight_card/test_sparse_hccl_checkpoint.py`。
+-在已安装配套依赖的 vllm-ascend 目录运行：
+-
+-```bash
+-pytest -s tests/e2e/pull_request/eight_card/test_sparse_hccl_checkpoint.py -k 'restore-normal and tp2-pp2-ep2'
+-```
+-
+-该用例需要五张空闲 NPU（一个发送端、四个 TP2/PP2/EP2 接收 worker）。
+-它保存独立正常 checkpoint，在随机位置及分片边界用随机变化量构造扰动基础模型，
+-通过 sparse HCCL 恢复后，要求所有 worker 的完整参数摘要及确定性生成 token 与正常模型一致。
+-稀疏传输仅使用非 packed 路径。`SparseWeightPatch.values` 是变更位置的目标值，
+-不是待相加的差值；因此发送正常 checkpoint 的对应值，避免 BF16 减后再加的舍入误差。
+-此用例使用小型合成 Qwen3-MoE 验证协议与映射正确性，不表示预训练模型精度或性能结论。
+-
+-单独进行耗时归因时，在 trainer 和 rollout worker 环境中设置 `VLLM_WEIGHT_TRANSFER_PROFILE=1`。
+-`WEIGHT_TRANSFER_PROFILE` 按阶段和 rank 记录累计秒数、调用次数。计时会同步设备，性能对照应关闭计时重新运行。
+-父阶段包含子阶段，不能直接相加；跨 rank 应分析关键路径上的最大耗时，不能累加所有 worker 的时间。
+-`receiver_apply` 等待设备工作完成；内部以 `_host_dispatch` 结尾的逐参数阶段只记录主机停留时间（包括隐式等待），不额外同步设备，也不代表单独的 kernel 执行时间。
++1. 通过 Megatron-Bridge 建立导出索引。首轮全量也使用
++   `HfWeightIteratorSparseBridge`，sparse 路径不调用直接映射导出器。
++2. 为首轮实际训练权重生成完整 int32 checkpoint 坐标与目标值，按字节预算分片，
++   使用原生 `send_weight_chunk` 发送。重连后也能覆盖旧 worker 状态，不假定其
++   仍等于初始 checkpoint。接收端仍需完整形状 NaN staging，首轮 wire 大于 dense 值传输。
++3. 首轮成功后才捕获本地 shard snapshot。后续 bitwise diff 通过真实 Bridge 映射及
++   NaN probe 生成最终 checkpoint 坐标，再按一致目录执行变长 gather 到 rank0。
++4. VIME 在通信前检查名称、形状、dtype、边界、重复索引及 NaN，并将 tensor 转到
++   communicator device 且连续。原生 sender 管理 metadata 和并发接收 RPC/broadcast；
++   VIME 管理 pause/start/finish/resume。
++5. 接收端通过临时 checkpoint-compatible MoE 视图调用模型原生 loader，处理 TP/EP
++   放置；不启用 Ascend MoE 直写。values 是目标值覆盖，零也必须写，不是加法 delta。
++6. 显式限制单个 checkpoint tensor 元素数小于 `2**31`，规避当前原生 loader 的
++   int32 大张量边界限制。wire 仍为 int32；输入校验和独立正确性 oracle 保留。
++
++两份依赖 patch 必须配套安装。两个 sparse 引擎与原生示例/测试模块固定到
++#18915 `f6ad8bd5`；固定模型源码保留兼容的 loader-view 回移。
++传输为非 packed；原生接收器不包含推理 PP 过滤或 VIME MoE 直写。
++
++独立接收 oracle 位于依赖的
++`tests/e2e/pull_request/eight_card/test_sparse_hccl_checkpoint.py`，需五张可用 NPU；
++覆盖 TP4/DP1/EP4 和 TP2/DP2/EP4，将全部 worker 参数 hash 和 greedy token
++与原生 checkpoint 加载比较。小型合成测试不代表 30B 精度或性能结论。
++
++`VLLM_WEIGHT_TRANSFER_PROFILE=1` 记录 VIME 适配层阶段。profiling 会同步设备，
++应与吞吐测量分开。gather/publish 含嵌套工作和等待，重叠阶段不能相加。
++更新原地执行、不具备事务回滚；发生可能部分写入的失败后保持暂停，
++updater 不得继续复用，必须重连并重新全量 seed。
+ 
+ ### 磁盘传输
+ 
+diff --git a/scripts/run-qwen3-30B-A3B-sparse-hccl.sh b/scripts/run-qwen3-30B-A3B-sparse-hccl.sh
+index c7d95f23..2f2949ec 100644
+--- a/scripts/run-qwen3-30B-A3B-sparse-hccl.sh
++++ b/scripts/run-qwen3-30B-A3B-sparse-hccl.sh
+@@ -92,7 +92,7 @@ OPTIMIZER_ARGS=(
+ 
+ VLLM_ARGS=(
+    --rollout-num-gpus-per-engine 4
+-   --vllm-pipeline-parallel-size 2
++   --vllm-pipeline-parallel-size 1
+    --vllm-gpu-memory-utilization "${VLLM_GPU_MEMORY_UTILIZATION:-0.6}"
+    --vllm-enforce-eager
+    --vllm-enable-expert-parallel
+@@ -120,7 +120,7 @@ MISC_ARGS=(
+    --no-gradient-accumulation-fusion
+ )
+ 
+-RESULT_LOG="${RESULT_LOG:-qwen3-30b-tp2-pp2-ep2-sparse-hccl.log}"
++RESULT_LOG="${RESULT_LOG:-qwen3-30b-train-tp2-pp2-ep2-rollout-tp4-pp1-ep4-sparse-hccl.log}"
+ if ! ray status --address="127.0.0.1:${RAY_GCS_PORT:-6523}" >/dev/null 2>&1; then
+ ray start --head --port="${RAY_GCS_PORT:-6523}" --temp-dir="${RAY_TEMP_DIR:-/tmp/vime-tp2-pp2-ep2}" \
+    --node-ip-address 127.0.0.1 --disable-usage-stats --dashboard-host=0.0.0.0 \
+diff --git a/tests/test_qwen3_30B_A3B_sparse_hccl_npu.py b/tests/test_qwen3_30B_A3B_sparse_hccl_npu.py
+index 7ff70183..9bc019a1 100644
+--- a/tests/test_qwen3_30B_A3B_sparse_hccl_npu.py
++++ b/tests/test_qwen3_30B_A3B_sparse_hccl_npu.py
+@@ -1,4 +1,4 @@
+-"""Non-colocated Qwen3-MoE sparse synchronization with TP2/PP2/EP2."""
++"""Train TP2/PP2/EP2; native #18915 rollout TP4/PP1/EP4."""
+ 
+ import os
+ import shlex
+@@ -79,7 +79,7 @@ def execute():
+ 
+     vllm_args = (
+         "--rollout-num-gpus-per-engine 4 "
+-        "--vllm-pipeline-parallel-size 2 "
++        "--vllm-pipeline-parallel-size 1 "
+         "--vllm-enable-expert-parallel "
+         "--vllm-expert-placement-strategy linear "
+         "--vllm-gpu-memory-utilization 0.6 "
+diff --git a/tests/test_sparse_hccl.py b/tests/test_sparse_hccl.py
+index f87ded06..24a8cbcd 100644
+--- a/tests/test_sparse_hccl.py
++++ b/tests/test_sparse_hccl.py
+@@ -119,30 +119,6 @@ def _compare_sparse_with_full_weights(model, cfg_dir, rank):
+         return {name: weight.detach().cpu().clone() for chunk in iterator.get_hf_weight_chunks() for name, weight in chunk}
+ 
+     accumulated = export()
+-    # Reuse both real exporters on the same live shards before any mutation.
+-    # The fixed tiny checkpoint above has these exact model dimensions.
+-    from vime.backends.megatron_utils.update_weight.common import named_params_and_buffers
+-    from vime.backends.megatron_utils.update_weight.hf_weight_iterator_direct import HfWeightIteratorDirect
+-
+-    direct_args = SimpleNamespace(
+-        update_weight_buffer_size=4096, num_experts=4, vocab_size=512,
+-        hidden_size=64, num_attention_heads=4, num_query_groups=2, kv_channels=16,
+-    )
+-    direct = HfWeightIteratorDirect(direct_args, model, "qwen3moe", None)
+-    local_weights = dict(named_params_and_buffers(direct_args, model))
+-    direct_weights = {}
+-    for chunk in direct.get_hf_weight_chunks(local_weights):
+-        for name, weight in chunk:
+-            assert name not in direct_weights, f"Duplicate Direct export: {name}"
+-            direct_weights[name] = weight.detach().cpu().contiguous().clone()
+-    assert direct_weights.keys() == accumulated.keys()
+-    for name, expected_weight in accumulated.items():
+-        actual_weight = direct_weights[name]
+-        assert actual_weight.dtype == expected_weight.dtype and actual_weight.shape == expected_weight.shape, name
+-        assert torch.equal(actual_weight.view(torch.uint8), expected_weight.contiguous().view(torch.uint8)), name
+-    if rank == 0:
+-        print(f"DIRECT VS BRIDGE PASS: tensors={len(direct_weights)} bitwise_equal=True", flush=True)
+-    del direct_weights, direct, local_weights
+     snapshots = {}
+     prime_delta_snapshots(index, snapshots, pin=False)
+     torch.npu.synchronize()
+@@ -523,48 +499,51 @@ def test_native_bucket_preserves_checkpoint_coordinates_when_split():
+ 
+ 
+ @pytest.mark.unit
+-@pytest.mark.parametrize("capacity,expected_flushes", [(16, 2), (64, 1)])
+-def test_native_dense_seed_reuses_complete_checkpoint_chunks(monkeypatch, capacity, expected_flushes):
++@pytest.mark.parametrize("capacity,expected_flushes", [(16, 4), (64, 1)])
++def test_native_seed_uses_public_sparse_chunks(monkeypatch, capacity, expected_flushes):
+     instance = updater_module.UpdateWeightFromSparseHCCL.__new__(updater_module.UpdateWeightFromSparseHCCL)
+     expected = {"weight": torch.arange(6, dtype=torch.float32).reshape(2, 3), "bias": torch.tensor([3.0, 5.0])}
+     instance.args = SimpleNamespace(update_weight_buffer_size=capacity)
+     chunks = [[item] for item in expected.items()] if capacity == 16 else [list(expected.items())]
+-    instance._seed_iterator = SimpleNamespace(get_hf_weight_chunks=lambda *a, **kw: iter(chunks))
+-    instance._iterator = SimpleNamespace(get_hf_weight_chunks=lambda *a, **kw: pytest.fail("seed must reuse the full exporter"))
++    instance._iterator = SimpleNamespace(get_hf_weight_chunks=lambda *a, **kw: iter(chunks))
+     instance.weights_getter = lambda: {}
++    instance._client = object()
+     sent = []
+-    instance._trainer = SimpleNamespace(send_dense_weight_chunk=lambda weights: sent.append(list(weights)))
++    from contextlib import nullcontext
++
++    instance._trainer = SimpleNamespace(
++        model_update_group=SimpleNamespace(device=torch.device("cpu")),
++        send_weight_chunk=lambda patches: sent.append(list(patches)),
++    )
++    instance._profile = SimpleNamespace(measure=lambda *a: nullcontext())
+     instance._payload_started = False
+     monkeypatch.setattr(updater_module.dist, "get_rank", lambda: 0)
+-    monkeypatch.setattr(updater_module.torch, "arange", lambda *a, **kw: pytest.fail("dense seed must not allocate indices"))
+-    flushes, wire = instance._send_dense()
+-    actual = dict(item for chunk in sent for item in chunk)
+-    assert flushes == len(sent) == expected_flushes and wire == 8 * 4
++    flushes, wire = instance._send_seed()
++    actual = {name: torch.zeros_like(tensor).flatten() for name, tensor in expected.items()}
++    for chunk in sent:
++        for patch in chunk:
++            assert patch.full_shape == tuple(expected[patch.name].shape)
++            actual[patch.name].index_copy_(0, patch.indices.long(), patch.values)
++    assert flushes == len(sent) == expected_flushes and wire == 8 * (4 + 4)
+     assert instance._payload_started
+-    assert all(torch.equal(actual[name], tensor) for name, tensor in expected.items())
++    assert all(torch.equal(actual[name], tensor.flatten()) for name, tensor in expected.items())
+ 
+ 
+ @pytest.mark.unit
+-def test_dense_seed_initializes_full_exporter_on_non_wire_rank(monkeypatch):
++def test_native_seed_uses_bridge_on_non_wire_rank(monkeypatch):
+     instance = updater_module.UpdateWeightFromSparseHCCL.__new__(updater_module.UpdateWeightFromSparseHCCL)
+-    instance.args = SimpleNamespace()
+-    instance.model = []
+-    instance.model_name = "qwen3"
+-    instance.quantization_config = None
+-    instance._seed_iterator = None
+-    weights = {}
+-    instance.weights_getter = lambda: weights
++    instance.args = SimpleNamespace(update_weight_buffer_size=1024)
+     calls = []
+ 
+-    def create(**kwargs):
++    def export(**kwargs):
+         calls.append(kwargs)
+-        return SimpleNamespace(get_hf_weight_chunks=lambda received, **kw: iter([]) if received is weights else pytest.fail("wrong weight source"))
++        return iter([])
+ 
+-    monkeypatch.setattr(updater_module, "HfWeightIteratorDirect", create)
++    instance._iterator = SimpleNamespace(get_hf_weight_chunks=export)
+     monkeypatch.setattr(updater_module.dist, "get_rank", lambda: 1)
+-    assert instance._send_dense() == (0, 0)
+-    assert instance._send_dense() == (0, 0)
+-    assert calls == [dict(args=instance.args, model=instance.model, model_name="qwen3", quantization_config=None)]
++    assert instance._send_seed() == (0, 0)
++    assert instance._send_seed() == (0, 0)
++    assert calls == [{"progress_desc": "Native sparse HCCL Bridge seed"}] * 2
+ 
+ 
+ @pytest.mark.unit
+@@ -574,10 +553,72 @@ def test_native_receiver_verification_request_is_rejected():
+ 
+ 
+ @pytest.mark.unit
+-def test_native_sparse_updates_do_not_replay_dense_seed(updater):
++@pytest.mark.parametrize("indices,values", [([-1], [1.0]), ([4], [1.0]), ([1, 1], [1.0, 2.0]), ([0], [float("nan")])])
++def test_native_payload_rejected_before_engine_send(monkeypatch, indices, values):
++    from contextlib import nullcontext
++
++    instance = updater_module.UpdateWeightFromSparseHCCL.__new__(updater_module.UpdateWeightFromSparseHCCL)
++    instance._client = object()
++    instance._payload_started = False
++    instance._profile = SimpleNamespace(measure=lambda *a: nullcontext())
++    instance._trainer = SimpleNamespace(
++        model_update_group=SimpleNamespace(device=torch.device("cpu")),
++        send_weight_chunk=lambda patches: pytest.fail("invalid payload reached native engine"),
++    )
++    monkeypatch.setattr(updater_module.dist, "get_rank", lambda: 0)
++    patch = updater_module.SparseWeightPatch("weight", torch.tensor(indices, dtype=torch.int32), torch.tensor(values), (4,))
++    with pytest.raises(ValueError, match="Sparse payload"):
++        instance._publish_flush([patch])
++    assert not instance._payload_started
++
++
++@pytest.mark.unit
++def test_native_payload_normalizes_noncontiguous_tensors_once_per_chunk(monkeypatch):
++    patches = [updater_module.SparseWeightPatch(
++        name, torch.tensor([0, 99, 3, 99], dtype=torch.int32)[::2], torch.tensor([0.0, 99.0, 7.0, 99.0])[::2], (4,)
++    ) for name in ("first", "second")]
++    original = torch.Tensor.item
++    reads = []
++
++    def read(tensor):
++        reads.append(True)
++        return original(tensor)
++
++    monkeypatch.setattr(torch.Tensor, "item", read)
++    prepared = updater_module.prepare_native_sparse_patches(patches, torch.device("cpu"))
++    assert len(reads) == 1
++    assert all(p.indices.is_contiguous() and p.values.is_contiguous() for p in prepared)
++    assert all(p.values.tolist() == [0.0, 7.0] for p in prepared)
++
++
++@pytest.mark.unit
++def test_native_loader_large_shape_limit_is_explicit():
++    patch = updater_module.SparseWeightPatch("large", torch.tensor([0], dtype=torch.int32), torch.tensor([1.0]), (2**31,))
++    with pytest.raises(ValueError, match="smaller than 2\\*\\*31"):
++        updater_module.prepare_native_sparse_patches([patch], torch.device("cpu"))
++
++
++@pytest.mark.unit
++def test_native_receiver_pp_rejected_before_bridge_initialization():
++    args = SimpleNamespace(update_weight_delta_verify_every=0, colocate=False, vllm_pipeline_parallel_size=2)
++    with pytest.raises(ValueError, match="pipeline_parallel_size=1"):
++        updater_module.UpdateWeightFromSparseHCCL(args, [], lambda: {}, model_name="test", quantization_config=None)
++
++
++@pytest.mark.unit
++@pytest.mark.parametrize("config", [{"pp_size": 2}, {"pipeline_parallel_size": 2}, {"pcp_size": 2}, {"prefill_context_parallel_size": 2}])
++def test_native_external_parallel_config_rejected_before_rendezvous(config):
++    instance = updater_module.UpdateWeightFromSparseHCCL.__new__(updater_module.UpdateWeightFromSparseHCCL)
++    instance.disconnect_rollout_engines = lambda: pytest.fail("unsupported config reached connection setup")
++    with pytest.raises(ValueError, match="does not support"):
++        instance.connect_rollout_engines([], None, engine_parallel_configs=[config])
++
++
++@pytest.mark.unit
++def test_native_sparse_updates_do_not_replay_seed(updater):
+     finishes = []
+     updater._send_sparse_delta = lambda: (1, 24, 4)
+-    updater._send_dense = lambda: pytest.fail("steady updates must not replay seed")
++    updater._send_seed = lambda: pytest.fail("steady updates must not replay seed")
+     updater._finish_update = lambda: finishes.append(updater.weight_version)
+     for _ in range(3):
+         updater.update_weights()
+@@ -603,7 +644,7 @@ def test_nan_guard_precedes_payload_and_snapshots(updater, monkeypatch, local_na
+     recovered = []
+     updater._recover_before_payload = lambda: recovered.append(True)
+     if local_nan or remote_nan:
+-        updater._send_dense = lambda **kwargs: pytest.fail("NaN seed must not be sent")
++        updater._send_seed = lambda **kwargs: pytest.fail("NaN seed must not be sent")
+         updater._send_sparse_delta = lambda **kwargs: pytest.fail("NaN delta must not be sent")
+         monkeypatch.setattr(updater_module, "prime_delta_snapshots", lambda *a, **kw: pytest.fail("snapshot changed"))
+         with pytest.raises(ValueError, match="NaN weights"):
+diff --git a/tests/utils/test_vllm_engine.py b/tests/utils/test_vllm_engine.py
+index bd540b0a..110e11cc 100644
+--- a/tests/utils/test_vllm_engine.py
++++ b/tests/utils/test_vllm_engine.py
+@@ -23,6 +23,30 @@ from vime.backends.vllm_utils import vllm_engine as mod
+ NUM_GPUS = 0
+ 
+ 
++@pytest.mark.unit
++@pytest.mark.parametrize("physical", [True, False])
++def test_npu_discrete_visible_devices_follow_placement_group_order(monkeypatch, physical):
++    monkeypatch.setattr(mod, "current_platform", lambda: SimpleNamespace(is_npu=True))
++    monkeypatch.setenv("ASCEND_RT_VISIBLE_DEVICES", "15,2,10,8,7,6,14,5")
++    assert mod._engine_visible_devices(8 if physical else 4, 4, base_is_physical=physical) == "8,10,14,15"
++
++
++@pytest.mark.unit
++@pytest.mark.parametrize("base,count", [(9, 1), (14, 3)])
++def test_npu_visibility_rejects_unassigned_or_incomplete_range(monkeypatch, base, count):
++    monkeypatch.setattr(mod, "current_platform", lambda: SimpleNamespace(is_npu=True))
++    monkeypatch.setenv("ASCEND_RT_VISIBLE_DEVICES", "2,5,6,7,8,10,14,15")
++    with pytest.raises(ValueError):
++        mod._engine_visible_devices(base, count, base_is_physical=True)
++
++
++@pytest.mark.unit
++def test_cuda_visibility_retains_existing_contiguous_behavior(monkeypatch):
++    monkeypatch.setattr(mod, "current_platform", lambda: SimpleNamespace(is_npu=False))
++    monkeypatch.setenv("ASCEND_RT_VISIBLE_DEVICES", "2,5,6,7")
++    assert mod._engine_visible_devices(4, 4, base_is_physical=True) == "4,5,6,7"
++
++
+ @pytest.fixture(autouse=True)
+ def _patch_vllm_server_fields(monkeypatch):
+     """Stub _VLLM_SERVER_FIELDS so tests don't need a real vllm install."""
+diff --git a/vime/backends/megatron_utils/update_weight/update_weight_from_sparse_hccl.py b/vime/backends/megatron_utils/update_weight/update_weight_from_sparse_hccl.py
+index f31569de..09c275fc 100644
+--- a/vime/backends/megatron_utils/update_weight/update_weight_from_sparse_hccl.py
++++ b/vime/backends/megatron_utils/update_weight/update_weight_from_sparse_hccl.py
+@@ -1,4 +1,4 @@
+-"""verl-style Megatron delta synchronization over Sparse HCCL."""
++"""Megatron synchronization through the unmodified #18915 sparse engines."""
+ 
+ from __future__ import annotations
+ 
+@@ -24,7 +24,6 @@ from vime.utils.distributed_utils import get_gloo_group
+ from .common import VimeRayWeightSyncClient
+ from .delta_sync import gather_slot_entries_to_rank0
+ from .delta_sync.sparse_gather import GatherWorkspace
+-from .hf_weight_iterator_direct import HfWeightIteratorDirect
+ from .hf_weight_iterator_sparse_bridge import HfWeightIteratorSparseBridge
+ from .megatron_delta_export import (
+     build_export_index,
+@@ -36,6 +35,44 @@ from .megatron_delta_export import (
+ logger = logging.getLogger(__name__)
+ 
+ 
++def prepare_native_sparse_patches(patches: Sequence[SparseWeightPatch], device) -> list[SparseWeightPatch]:
++    """Validate and normalize before the native engine starts worker RPCs.
++
++    #18915 deliberately leaves device/contiguity preparation to the caller.
++    Numeric flags are read once per chunk rather than once per parameter.
++    """
++    prepared = []
++    checks = []
++    for patch in patches:
++        if not isinstance(patch.name, str) or not patch.name:
++            raise ValueError("Sparse checkpoint name must be non-empty")
++        if patch.full_shape is None or any(type(dim) is not int or dim < 0 for dim in patch.full_shape):
++            raise ValueError(f"Invalid sparse checkpoint shape: {patch.name}")
++        numel = prod(patch.full_shape)
++        if numel >= 2**31:
++            raise ValueError(f"Native sparse loader requires checkpoint tensors smaller than 2**31 elements: {patch.name}")
++        if patch.indices.dtype != torch.int32 or patch.indices.ndim != 1 or patch.values.ndim != 1:
++            raise ValueError(f"Sparse patches require 1D int32 indices and 1D values: {patch.name}")
++        if patch.indices.numel() != patch.values.numel():
++            raise ValueError(f"Sparse indices and values must have matching lengths: {patch.name}")
++        if patch.values.dtype not in (torch.float16, torch.bfloat16, torch.float32, torch.float64):
++            raise ValueError(f"Sparse values must have floating dtype: {patch.name}")
++        indices = patch.indices.to(device=device).contiguous()
++        values = patch.values.to(device=device).contiguous()
++        if indices.numel():
++            wide = indices.to(torch.int64)
++            ordered = torch.sort(indices).values
++            checks.extend([
++                ((wide < 0) | (wide >= numel)).any(),
++                (ordered[1:] == ordered[:-1]).any(),
++                torch.isnan(values).any(),
++            ])
++        prepared.append(SparseWeightPatch(patch.name, indices, values, tuple(patch.full_shape)))
++    if checks and torch.stack(checks).any().item():
++        raise ValueError("Sparse payload contains out-of-range or duplicate indices, or NaN values")
++    return prepared
++
++
+ class _GatherQueue:
+     """Count-triggered queues preserving collective order on every rank."""
+ 
+@@ -142,7 +179,7 @@ class _SparseFlushBucket:
+ 
+ 
+ class UpdateWeightFromSparseHCCL:
+-    """Dense seed followed by shard-local sparse delta synchronization."""
++    """Full-coordinate seed and sparse deltas using the same public engine API."""
+ 
+     def __init__(
+         self,
+@@ -159,6 +196,10 @@ class UpdateWeightFromSparseHCCL:
+             raise NotImplementedError("Sparse HCCL delta sync does not support quantized rollout weights")
+         if args.colocate:
+             raise ValueError("Sparse HCCL delta sync requires non-colocated rollout engines")
++        if int(getattr(args, "vllm_pipeline_parallel_size", 1) or 1) != 1:
++            raise ValueError("Native #18915 sparse HCCL requires inference pipeline_parallel_size=1")
++        if int(getattr(args, "vllm_prefill_context_parallel_size", 1) or 1) != 1:
++            raise ValueError("Native #18915 sparse HCCL requires inference prefill_context_parallel_size=1")
+         self.args = args
+         self.model = model
+         self.weights_getter = weights_getter
+@@ -167,7 +208,6 @@ class UpdateWeightFromSparseHCCL:
+         self.weight_version = 0
+         self.update_weight_metrics: dict[str, float] = {}
+         self._iterator = HfWeightIteratorSparseBridge(args, model)
+-        self._seed_iterator = None
+         self._index = None
+         self._snapshots: dict[str, torch.Tensor] = {}
+         self._seeded = False
+@@ -188,7 +228,12 @@ class UpdateWeightFromSparseHCCL:
+         engine_gpu_offsets: Sequence[int] | None = None,
+         engine_parallel_configs: Sequence[Mapping[str, object]] | None = None,
+     ) -> None:
+-        del rollout_engine_lock, engine_gpu_offsets, engine_parallel_configs
++        del rollout_engine_lock, engine_gpu_offsets
++        for config in engine_parallel_configs or ():
++            if int(config.get("pipeline_parallel_size", config.get("pp_size", 1)) or 1) != 1:
++                raise ValueError("Native #18915 sparse HCCL does not support inference PP>1")
++            if int(config.get("prefill_context_parallel_size", config.get("pcp_size", 1)) or 1) != 1:
++                raise ValueError("Native #18915 sparse HCCL does not support inference prefill context parallelism")
+         self.disconnect_rollout_engines()
+         self._seeded = False
+         self._failed = False
+@@ -309,35 +354,45 @@ class UpdateWeightFromSparseHCCL:
+         if dist.get_rank() != 0 or not patches:
+             return
+         assert self._client is not None and self._trainer is not None
+-        # Native send_weight_chunk owns metadata and matching worker RPCs.
++        with self._profile.measure("trainer_prepare_native_payload"):
++            patches = prepare_native_sparse_patches(patches, self._trainer.model_update_group.device)
++        # Both seed and delta use #18915's unmodified public chunk API.
+         # The surrounding VIME update owns start/finish and generation pause.
+         self._payload_started = True
+         self._trainer.send_weight_chunk(patches)
+ 
+-    def _send_dense(self) -> tuple[int, int]:
+-        """Bootstrap full checkpoint values without indices or NaN staging.
++    def _send_seed(self) -> tuple[int, int]:
++        """Send the actual training weights through native sparse patches.
+ 
+-        Reuse the full updater's existing exporter. Bridge remains responsible
+-        for the sparse export index; neither exporter implementation changes.
++        The public #18915 protocol has no dense flag or dense send method.
++        Full coordinates seed new/reconnected workers without assuming that
++        their current runtime parameters still equal the initial checkpoint.
+         """
+         statistics = {"flushes": 0, "wire_bytes": 0}
+-        if self._seed_iterator is None:
+-            # Construction gathers parameter metadata collectively. Every
+-            # training rank must participate, including non-wire ranks.
+-            self._seed_iterator = HfWeightIteratorDirect(
+-                args=self.args,
+-                model=self.model,
+-                model_name=self.model_name,
+-                quantization_config=self.quantization_config,
+-            )
+-        for chunk in self._seed_iterator.get_hf_weight_chunks(self.weights_getter(), progress_desc="Dense HCCL seed"):
++
++        def publish(patches):
++            self._publish_flush(patches)
++            statistics["flushes"] += 1
++            statistics["wire_bytes"] += sum(p.indices.numel() * (4 + p.values.element_size()) for p in patches)
++
++        bucket = _SparseFlushBucket(self.args.update_weight_buffer_size, publish)
++        # The same real Bridge used for probing exports the full seed. Every
++        # training rank participates, including non-wire PP/TP/EP ranks.
++        for chunk in self._iterator.get_hf_weight_chunks(progress_desc="Native sparse HCCL Bridge seed"):
+             if dist.get_rank() != 0 or not chunk:
+                 continue
+-            self._payload_started = True
+-            assert self._trainer is not None
+-            self._trainer.send_dense_weight_chunk(chunk)
+-            statistics["flushes"] += 1
+-            statistics["wire_bytes"] += sum(tensor.numel() * tensor.element_size() for _, tensor in chunk)
++            for name, tensor in chunk:
++                flat = tensor.reshape(-1)
++                if flat.numel() >= 2**31:
++                    raise ValueError(f"Native sparse loader requires checkpoint tensors smaller than 2**31 elements: {name}")
++                max_elements = max(self.args.update_weight_buffer_size // (4 + flat.element_size()), 1)
++                for start in range(0, flat.numel(), max_elements):
++                    end = min(start + max_elements, flat.numel())
++                    indices = torch.arange(start, end, dtype=torch.int32, device=flat.device)
++                    bucket.add(name, tensor.shape, indices, flat[start:end])
++            # Export buffers may be reused by the iterator on its next yield.
++            # Complete all sends before advancing to the next export chunk.
++            bucket.flush()
+         return statistics["flushes"], statistics["wire_bytes"]
+ 
+     def _send_sparse_delta(self) -> tuple[int, int, int]:
+@@ -425,7 +480,7 @@ class UpdateWeightFromSparseHCCL:
+                 validate_export_weights(self._index)
+             if not self._seeded:
+                 with self._profile.measure("trainer_seed_export_send"):
+-                    flushes, wire_bytes = self._send_dense()
++                    flushes, wire_bytes = self._send_seed()
+                 assert self._index is not None
+                 with self._profile.measure("trainer_seed_snapshot"):
+                     prime_delta_snapshots(self._index, self._snapshots, pin=True)
+diff --git a/vime/backends/vllm_utils/vllm_engine.py b/vime/backends/vllm_utils/vllm_engine.py
+index c1cd7006..bdf39f01 100644
+--- a/vime/backends/vllm_utils/vllm_engine.py
++++ b/vime/backends/vllm_utils/vllm_engine.py
+@@ -37,6 +37,24 @@ def get_base_gpu_id(args, rank):
+     return start_index
+ 
+ 
++def _engine_visible_devices(base: int, count: int, *, base_is_physical: bool) -> str:
++    """Select NPU IDs in the same physical-ID order as placement groups."""
++    visible = os.environ.get("ASCEND_RT_VISIBLE_DEVICES")
++    if not current_platform().is_npu or not visible:
++        return ",".join(str(base + i) for i in range(count))
++    devices = sorted(int(value.strip()) for value in visible.split(",") if value.strip())
++    if len(set(devices)) != len(devices):
++        raise ValueError("ASCEND_RT_VISIBLE_DEVICES contains duplicate device IDs")
++    try:
++        offset = devices.index(base) if base_is_physical else base
++    except ValueError as error:
++        raise ValueError(f"Ray-assigned NPU {base} is absent from ASCEND_RT_VISIBLE_DEVICES={visible}") from error
++    selected = devices[offset : offset + count]
++    if offset < 0 or len(selected) != count:
++        raise ValueError(f"Cannot select {count} NPUs from offset {offset} in ASCEND_RT_VISIBLE_DEVICES={visible}")
++    return ",".join(str(device) for device in selected)
++
++
+ def launch_server_process(server_args_dict: dict) -> multiprocessing.Process:
+     env = _build_subprocess_env(server_args_dict)
+     kwargs = {k: v for k, v in server_args_dict.items() if not k.startswith("_")}
+@@ -748,7 +766,7 @@ def _compute_server_args(
+     kwargs["_args"] = args
+     kwargs["_rank"] = rank
+     kwargs["_worker_type"] = worker_type
+-    kwargs["_visible_devices"] = ",".join(str(base + i) for i in range(local_num_gpus))
++    kwargs["_visible_devices"] = _engine_visible_devices(base, local_num_gpus, base_is_physical=base_gpu_id is not None)
+     kwargs["_tp_size"] = tp
+     kwargs["_pp_size"] = pp
+     kwargs["_pcp_size"] = pcp

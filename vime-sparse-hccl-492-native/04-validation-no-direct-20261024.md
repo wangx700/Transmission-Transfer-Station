@@ -4,6 +4,8 @@
 
 证据入口：[本次测试输出与补丁审计](evidence-20261024/)。其中 `support-client.log` 包含 24 项兼容测试的 0.15 秒运行；`native-unit-client.log` 是同范围 0.17 秒复测，两者不累加。
 
+可审查的代码候选：[相对 #492 b7a462f5 的完整差异](evidence-20261024/vime-native-no-direct-candidate.patch)。这是本地候选补丁，尚未提交到 #492；它与同目录早先的阅读快照分别记录，避免覆盖历史材料。
+
 ## 实现约束和接口流程
 
 VIME sparse updater 不导入或使用 `HfWeightIteratorDirect`。首次完整 seed 和后续 NaN probe 都经过 `HfWeightIteratorSparseBridge` / Megatron-Bridge；Ascend 不增加 `sparse_moe_direct`，不直接寻址 MoE runtime 参数。
