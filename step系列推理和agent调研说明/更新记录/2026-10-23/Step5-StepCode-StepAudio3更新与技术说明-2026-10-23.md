@@ -1,12 +1,13 @@
 # Step 5 / Step-Code / StepAudio 3 与昇腾适配：2026-10-05 → 10-23 阶段更新
 
-按四块组织：**社区更新点 → 昇腾需要关注的点 → 当前任务项进展 → 人力投入矩阵与日常活动**。
+按四块组织：**社区更新点 → 昇腾需要关注的点 → 当前任务项进展 → 人力投入矩阵与日常活动**。前两块按 **RL 场景推理侧** 与 **Agent** 两条主线展开。
 
 > **区间**：2026-10-05 00:00 → 2026-10-23 14:30（北京时间）。本文件为该区间统一版，取代此前"10-20 正文 + 10-23 增补"的两段式写法；`更新记录/2026-10-20/` 保留为当日归档，不再滚动更新。
 > **固定版本**：Step-Code `81e79bc4b6`（10-23 14:28:19 +08）；`stepfun-ai/vllm` 的 `step-5-preview-tracking` = `e177c621f2`（10-10 16:48:44，区间内**未再变化**）；`stepfun-ai/Step-5-Preview` 文档仓 `acf39aef5d`（10-15）；HF `stepfun-ai/Step-5-Preview` 权重 `lastModified` = 2026-10-15T01:28:10Z。
 > **同期生态基线**（来自本仓其他跟踪目录，10-23 核对）：vLLM `19c0e170d2`（部分专项 `432b1003f8ea`）、vLLM-Ascend `db8836752`、SGLang `f4a2df3dac`。
 > **本项目**：工作区 `C:\Users\w00899129\step5`。文中"本项目路径"均相对该工作区，除标注「未找到」外已在本地检出中逐条实测存在；这些私有检出**不随本仓库分发**。
 > **方法边界**：公开 API/仓库/文档核查 + 本项目本地源码实测。**未**做真机推理、性能复测、昇腾算子数值验证；未修改任何业务代码。PR 号可直接拼 `https://github.com/<org>/<repo>/pull/<号>` 访问。
+> **主线定位**：全文按两条主线展开——**RL 场景的推理侧**（rollout 采集与 replay、训推数值一致性、权重更新、推理引擎适配表现）与 **Agent 侧**（Step-Code 会话、子 Agent 编排、上下文/前缀治理）。Step 5 Preview 官方技术文档与 StepAudio 3 只作口径与边界记录（见 1.5），不构成主线结论。
 
 ---
 
@@ -25,15 +26,17 @@
 
 > 口径提示：`stepfun-ai/vllm` 的 `main` HEAD 是 `b372ad3e90`（2026-05-28），比 `step-5-preview-tracking` 的 10-10 **更旧**——判断 Step5 分支新旧必须按分支看。
 
-## 1.2 推理与模型侧：vLLM `step-5-preview-tracking`
+## 1.2 RL 推理侧（一）：vLLM `step-5-preview-tracking` 的推理引擎改动
 
-区间内新增提交仅 `e177c621` / PR #30（10-10 16:48:44）。它不是"只改设备白名单"，以下 5 条可按行号在 `upstream-step5-reference`（= `e177c621` 同版本）逐行对上：
+区间内新增提交仅 `e177c621` / PR #30（10-10 16:48:44）。它不是"只改设备白名单"，以下 5 条可按行号在 `upstream-step5-reference`（= `e177c621` 同版本）逐行对上，并标出各自落在 rollout 推理的哪一环：
 
-1. **后端准入扩大**：`nvidia/sparse_attention.py:933` 的 `supports_compute_capability` 从 SM103 扩为 SM90、SM103；`model.py:994` 报错文案同步（"requires SM90 or SM103"）。
-2. **按设备选择打分内核**：`nvidia/flashinfer_sparse.py:46-49`，SM90 走新增的 `paged_mqa_logits_sm90`，其他路径继续用 FlashInfer `fp8_paged_mqa_logits`。
-3. **新增 Hopper 摘要页打分**：`nvidia/ops/sparse_indexer_scores.py:274`；输入 FP8 query、打包 summary KV、head weights、长度与页表，还原 FP8 keys 与 FP32 scales 后算加权分数；**超有效长度区域置 −inf**。
-4. **top-k 确定性与布局修复**：`nvidia/ops/sparse_indexer.py` 的 `select_regions`；只有 DeepSelect 保证未排序选择的确定性顺序，其他后端强制排序；DeepSelect 按 32 字节对齐、per_row 写连续行，避免错误复用对齐 stride；要求精确 FP32 排序。
-5. **硬件覆盖与参考一致性检查**：`tests/kernels/core/test_step5_sparse_decode_attention.py` 覆盖 top-k=2/7/512、打包 scales、query pairs、page boundary；SWA 与 KV layout 集成测试放宽到 SM90/SM103。**仅核查测试代码，未在 H200 上运行**。
+| # | 改动（行号可对上） | RL 推理环节 |
+|---|---|---|
+| 1 | 后端准入扩大：`nvidia/sparse_attention.py:933` 的 `supports_compute_capability` 从 SM103 扩为 SM90、SM103；`model.py:994` 报错文案同步 | rollout 可用性前提（决定能否在该卡上跑） |
+| 2 | 按设备选择打分内核：`nvidia/flashinfer_sparse.py:46-49`，SM90 走新增 `paged_mqa_logits_sm90`，其他路径继续用 FlashInfer `fp8_paged_mqa_logits` | long-context rollout 的 prefill/decode 选核 |
+| 3 | 新增 Hopper 摘要页打分：`nvidia/ops/sparse_indexer_scores.py:274`；FP8 query + 打包 summary KV + 长度/页表，**超有效长度区域置 −inf** | rollout 注意力可见性（无效区不可被选中） |
+| 4 | top-k 确定性与布局修复：`nvidia/ops/sparse_indexer.py` 的 `select_regions`；仅 DeepSelect 保证未排序选择的确定性顺序，其他后端强制排序；要求精确 FP32 排序 | **replay 关键**：同输入同选择的确定性前提 |
+| 5 | 硬件覆盖与参考一致性检查：`tests/kernels/core/test_step5_sparse_decode_attention.py` 覆盖 top-k=2/7/512、打包 scales、query pairs、page boundary | 一致性回归基线（仅核查测试代码，未在 H200 上运行） |
 
 接口流程：
 
@@ -50,7 +53,21 @@
   → Agent 宿主执行工具并回传
 ```
 
-## 1.3 Agent 侧：Step-Code 提交与逻辑
+## 1.3 RL 推理侧（二）：生态同期变化（batch 一致性 / replay / LoRA / 权重更新）
+
+表中的「RL 链路环节」按本仓六特性口径标注：M 采样掩码、I 索引回放、R 专家回放（R3）、H 隐状态、L Logprob、B batch 一致性；权重更新与推理引擎表现单列。
+
+| 生态 | 社区更新（10-05→10-23） | RL 链路环节 | 对本项目的含义 |
+|---|---|---|---|
+| vLLM 主线 | Inductor BI 开关进主线 #61118（10-17）、BI 验证名单扩容 #61254、cooperative TopK 溢出改精确选择 #59645 | B | rollout 与训练的数值漂移收敛，但 DeepSeek-V4 的 0-diff 未进主线 |
+| vLLM 主线 | **Step5（文本 + VL）LoRA 合入 #62498** | 权重更新（LoRA 热更新） | Step5 生态在扩；本项目 `vllm_ascend/lora` 尚无 MLA 处理，需评估是否跟进 |
+| vLLM 主线（未合入） | DeepSeek-V4 拆分专项 #60442~#60454、#59925/#59929 与 #60074 仍 Open | B / R 契约 | V4 0-diff 未进主线，相关契约仍在变 |
+| vLLM 主线（未合入） | DSA index replay #49555 仍 Draft；新增 #62915 Profile-based indexer replay（10-21 前后，57 文件） | I | 索引采集返回**两条路线并存、收敛未定**，不能按单一实现排期 |
+| vllm-ascend | 窗口内 **151 个合入**，集中在 V4.1 bounded replay（跨 runner/PCP）、PCP 图回放 padding、GDN 状态索引与 MTP 正确性；#19220 DSpark 双向 SparseFlashMla、#19190 层间 O-projection buffer 共享、#19491 移除旧 DSA-CP 文档；**LoRA 零改动** | I / B 的正确性地基 | 图回放与并行组合的地基变厚，但 BI/LoRA 限制未解除、DSA 采集返回仍缺 |
+| SGLang | 21 部分堆叠 LoRA runtime stack 以 #45892 于 10-23 合入 main；NPU 确定性算法 #45063、动态 batch 贪心标志 #44923 | 权重更新 / B | SGLang 侧走向可参照，Ascend 侧尚无等价实现 |
+| verl | #8025 rollout/actor logprob mismatch 指标已合入 | L（训推偏差度量） | NPU 接入等价指标是当下可开工项（见 2.4 P0-2） |
+
+## 1.4 Agent 侧：Step-Code 提交与逻辑
 
 Step-Code 是本区间**唯一持续更新**的对象。日期以进入 `main` 的时间为准。
 
@@ -96,22 +113,10 @@ Step-Code 是本区间**唯一持续更新**的对象。日期以进入 `main` �
 
 **飞书边界**：`/connect lark` 把消息与审批映射到当前终端会话，第一个合法审批生效；**不启动第二套 Agent 循环**，不是后台常驻服务，也不新增语音处理能力。
 
-## 1.4 生态侧同期变化（与 Step5 部署直接相关）
+## 1.5 非主线：文档口径与边界
 
-| 生态 | 社区更新（10-05→10-23） | 对本项目的含义 |
-|---|---|---|
-| vLLM 主线 | **Step5（文本 + VL）LoRA 合入 #62498**；Inductor BI 开关进主线 #61118（10-17）、BI 验证名单扩容 #61254、cooperative TopK 溢出改精确选择 #59645 | Step5 生态在扩（LoRA），本项目 STEP5 适配范围需评估是否跟进 LoRA |
-| vLLM 主线（未合入） | DeepSeek-V4 拆分专项 #60442~#60454、#59925/#59929 与 #60074 仍 Open；DSA index replay #49555 仍 Draft，新增 #62915 Profile-based indexer replay（10-21 前后，57 文件） | V4 0-diff 未进主线；DSA 采集返回**两条路线并存、收敛未定** |
-| vllm-ascend | 窗口内 **151 个合入**，集中在 V4.1 bounded replay（跨 runner/PCP）、PCP 图回放 padding、GDN 状态索引与 MTP 正确性；#19220 DSpark 双向 SparseFlashMla、#19190 层间 O-projection buffer 共享、#19491 移除旧 DSA-CP 文档；**LoRA 零改动** | 正确性地基变厚，但 BI/LoRA 限制未解除；DSA 采集返回仍缺 |
-| SGLang | 21 部分堆叠 LoRA runtime stack 以 #45892 于 10-23 合入 main；NPU 确定性算法 #45063、动态 batch 贪心标志 #44923 | SGLang 侧走向可参照，Ascend 侧尚无等价实现 |
-| verl | #8025 rollout/actor logprob mismatch 指标已合入 | NPU 接入等价指标是当下可开工项（见 2.4 P0） |
-
-## 1.5 文档侧口径（Step 5 Preview / StepAudio 3）
-
-- **Step 5 Preview 技术文档**（10-15 *Inside Step 5 Preview*）：92 层窄深设计、SWA + Sparse GQA 降长上下文成本、训推数值对齐与异步轨迹重放降 RL 偏差、MTP/FP8/EP/KV 管理提升 rollout 效率、压缩进训练。**口径差异必须保留**：官方 README 写最大输出可至 1M（输入输出共享总上下文预算），API 模型页仍列 64k；线上按 endpoint 实际限制。
-- **StepAudio 3**：区间内只有 Realtime 论文 v3 修订（10-12），仍无独立三代推理仓；旧仓名与 TTS-3B 的"3B"不能作为三代已开源证据。Step-Code provider 过滤语音类型，**语音驱动编程属可选的自行桥接方案，不是仓库已实现能力**。
-
----
+- **Step 5 Preview 技术文档**（10-15 *Inside Step 5 Preview*）：92 层窄深设计、SWA + Sparse GQA 降长上下文成本、**训推数值对齐与异步轨迹重放降 RL 偏差**、MTP/FP8/EP/KV 管理提升 rollout 效率、压缩进训练。这是本文两条主线的背景说明，不单独构成结论。**口径差异必须保留**：官方 README 写最大输出可至 1M（输入输出共享总上下文预算），API 模型页仍列 64k；线上按 endpoint 实际限制。
+- **StepAudio 3（不在本文主线内）**：区间内只有 Realtime 论文 v3 修订（10-12），仍无独立三代推理仓；旧仓名与 TTS-3B 的"3B"不能作为三代已开源证据。Step-Code provider 过滤语音类型，**语音驱动编程属可选的自行桥接方案，不是仓库已实现能力**；本文不展开。
 
 # 二、昇腾需要关注的点
 
@@ -205,6 +210,18 @@ vLLM 侧 Step5 LoRA 已合入 #62498，而本项目 `vllm_ascend/lora` 无任何
 - 前两个 checkout 的 `origin` **是同一个私有 fork** `github.com/earthmanylf/vllm-ascend-step4`，只是检出分支不同（不是两个独立仓库）。
 - vllm-ascend 区间内主要工程动作是 **#50（aclnn 替换）→ #55（接口拆分）→ #65（接口 churn 修复）** 这条链。
 - 本地对象库**没有** `e177c621`（`git cat-file` 失败）；公开分支在 09-21～10-10 有 26 个 Step5 提交（`Sync with upstream (#10)` 另带入上游主线提交，`compare` 的 `total_commits` 为 2220，不能当 Step5 提交数引用）。两棵树里 `water18` 用 `cute_dsl`，公开分支用 `flashinfer`，两棵树不可混用行号。
+
+---
+
+## 2.6 RL 场景专属关注点（与通用推理适配不同）
+
+| 关注点 | 为什么 RL 场景更敏感 | 昇腾侧落点 / 动作 |
+|---|---|---|
+| **确定性 / 可重放** | rollout 与训练要按同一轨迹对齐，采样与 top-k 的非确定性会被误判成模型问题 | `VLLM_STEP5_DSA_FORCE_STABLE_TOPK`（默认 True）、aclnn `IndexerRegionScore` 的 `sort_mode=1`、GBSA `_append_current_region_kernel`；动作见 2.4 P0-1 |
+| **logprob / 数值一致性** | PPO/GRPO 的 ratio、KL 与 teacher scoring 依赖 raw/processed 语义一致 | 接入 verl #8025 等价的 mismatch 指标（count 求和、diff_max、one-ULP 掩蔽）；动作见 2.4 P0-2 |
+| **batch 不变性** | 同请求因 batch 大小、同批伙伴与顺序变化产生漂移，RL 侧的奖励就会被噪声污染 | GEMM/算子分派自查（tile 分桶是否依赖 M）+ 图回放回归矩阵；动作见 2.4 P0-3 / P1-2 |
+| **replay 的数据闭环** | 拿到数组只是第一步，坐标、层映射、token 位移、权重版本任一处错位即失效 | I（索引）与 H（隐状态）回传仍未合入，按"未合入"单独推进；本仓 `dsa-index-replay/`、`rl-replay-consistency/` 维护口径 |
+| **权重更新路径** | 训练侧更新权重后推理侧要热更新且不能回滚到旧分片 | Sparse HCCL（PR #18915）已验证的分片更新路径；Step5 LoRA 组合待评估（2.4 P2-3） |
 
 ---
 
