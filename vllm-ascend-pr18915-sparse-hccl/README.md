@@ -1,5 +1,13 @@
 # PR #18915：Sparse HCCL 权重更新
 
+## 当前版本说明（2026-10-24）
+
+- [当前版本时序图与接口说明](04-current-sequence-20261024.md)：固定 Ascend `f6ad8bd5`、vLLM `c0b6f74b`，包含建组、收发并发、NaN staging、MoE loader 视图、生命周期及支持边界。
+- [当前 Mermaid 源文件](04-current-sequence-20261024.mmd)。
+
+下方原有图集、源码和测试材料固定于旧版本 `ee1f30111` / `c4df37d`，作为历史归档；旧版 PP、int64 转换和 80 项测试数量不能套用到上面的当前版本说明。
+
+
 配套 [vllm-ascend PR #18915](https://github.com/vllm-project/vllm-ascend/pull/18915) 的时序图、核心代码与逐项测试说明。
 
 材料固定在 Ascend 提交 [ee1f30111](https://github.com/wangx700/vllm-ascend/commit/ee1f30111)，上游 vLLM 固定为 [c4df37d](https://github.com/vllm-project/vllm/commit/c4df37dfcc7f72ca41cd43801a468526ecf99a2b)。验证日期为 2026-10-21；后续 PR 内容请按提交差异核对。

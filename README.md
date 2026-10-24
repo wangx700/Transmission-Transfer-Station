@@ -41,6 +41,8 @@
 
 ## Sparse HCCL 权重更新
 
+- [PR #18915 当前版本时序图与接口说明（2026-10-24）](vllm-ascend-pr18915-sparse-hccl/04-current-sequence-20261024.md)：固定 `f6ad8bd5`，含独立 Mermaid 源文件及当前支持边界；旧版材料另行保留。
+
 - [PR #18915 材料目录](vllm-ascend-pr18915-sparse-hccl/README.md)：整体 UML 时序图、核心代码与接口流程、80 个 pytest 用例说明，以及真实 HCCL 验证记录。
 
 ## Qwen3-30B-A3B 稀疏权重同步

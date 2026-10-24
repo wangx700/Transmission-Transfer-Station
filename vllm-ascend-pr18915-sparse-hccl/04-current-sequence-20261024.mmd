@@ -1,0 +1,64 @@
+sequenceDiagram
+    autonumber
+    participant A as 调用方／训练脚本
+    participant T as SparseHCCL训练端
+    participant C as HTTP同步客户端／服务端
+    participant W as 全部推理Worker
+    participant L as 公共Checkpoint Loader
+
+    Note over A,W: 训练与推理先加载相同checkpoint，使用独立NPU
+    A->>A: 构造SparseWeightPatch列表
+    Note over A: name、full_shape、int32 indices、目标values
+    A->>C: pause，暂停推理
+    C-->>A: 暂停完成
+
+    A->>T: trainer_init(init_info, client)
+    par 接收端建组
+        T->>C: init_weight_transfer_engine(metadata)
+        C->>W: 初始化SparseHCCL接收引擎
+        W->>W: 校验PP／EPLB／量化／ND布局
+        W->>W: 创建HCCL接收端
+    and 发送端建组
+        T->>T: 创建HCCL rank0端点
+    end
+    Note over T,W: 双方并发握手，world_size=1+TP×DP
+    T-->>A: 初始化完成
+
+    A->>T: send_weights(patches)
+    T->>T: 公共结构检查
+    T->>C: start_weight_update()
+    C->>W: 开始更新生命周期
+    Note over W: sparse引擎原地更新，不执行layerwise reload
+
+    T->>T: 过滤空patch，适配CUDA stream到NPU
+    par 控制面：后台线程启动接收
+        T->>C: update_weights(names/dtypes/shapes/counts)
+        C->>W: update_weights(metadata)
+        W->>W: 进入checkpoint_loader_views
+        W->>W: 解析元数据、分配接收tensor
+    and 数据面：HCCL广播
+        loop 每个非空patch，所有rank保持相同顺序
+            T->>W: broadcast(indices，src=0)
+            T->>W: broadcast(values，src=0)
+        end
+    end
+
+    W->>L: load_checkpoint_weight_patches()
+    L->>L: 校验形状、边界、重复indices和NaN
+    L->>L: 创建完整形状NaN staging
+    L->>L: index_copy_填入变化位置的目标值
+    L->>W: model.load_weights(checkpoint tensors)
+    W->>W: 原生loader执行TP切片与EP专家映射
+    Note over L,W: 最终写入时跳过NaN，保留未变化位置
+    W->>W: 设备同步完成
+    W->>W: 退出loader视图，恢复推理布局
+    W-->>C: 本chunk应用完成
+    C-->>T: update_weights RPC返回
+    T->>T: 等待RPC完成，再同步发送stream
+
+    T->>C: finish_weight_update()
+    C->>W: 结束更新生命周期
+    T-->>A: send_weights返回
+    A->>T: 最后一次更新后shutdown
+    A->>C: 成功后resume，恢复推理
+    Note over A,W: 更新失败时保持暂停，恢复基线或重启后再服务
