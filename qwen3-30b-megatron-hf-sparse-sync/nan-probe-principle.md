@@ -49,6 +49,67 @@ bridge.get_conversion_tasks(model)
 
 CPU snapshot是本rank的Megatron分片；顺序为先diff再probe，不是先导出完整HF模型再做HF diff。snapshot更新和失败恢复是同步协议的职责，probe自身不提供事务提交或回滚。
 
+### 3.1 六元组里的gather_group主要做什么
+
+**gather_group指定哪些训练rank一起合并当前参数目录行的HF稀疏贡献。** 它是训练侧的通信控制信息，不是HF张量属性，也不是需要序列化给推理侧的ProcessGroup对象。
+
+```python
+(slots, dtype_str, counts, hf_idx, hf_val, gather_group)
+```
+
+前五项描述本rank产出了哪些HF稀疏更新，最后一项指定这些更新要和谁合并。这里应以“参数目录行”为单位理解：一条Megatron参数目录行可能拆成多个HF slot，EP场景还可能包含不同rank对应的不同专家。
+
+```text
+各rank独立运行probe（不取其他rank真实权重）
+  → 本rank的HF indices、values、各slot的count
+  → 在gather_group内按slot合并（真实集合通信）
+  → 组内rank0取得合并结果，供后续打包发送
+```
+
+### 3.2 TP2示例：合并同一个Q张量的两份贡献
+
+假设TP0和TP1分别得到：
+
+```text
+TP0：HF Q前半部分的变化 → indices0、values0
+TP1：HF Q后半部分的变化 → indices1、values1
+```
+
+gather_group包含这两个rank时，合并端得到同一个HF Q slot下两边的稀疏贡献。indices已经是Q完整张量的全局flat坐标，无需在合并时再加TP分片偏移。
+
+合并的是已经转换好的稀疏条目，不是先收齐完整Megatron权重再转换。无变化rank仍需按协议参加相同顺序的集合操作，count为0。
+
+### 3.3 PP2为什么选择WORLD
+
+本地`build_export_index`在PP>1时为参数目录行使用WORLD组，使全局rank0能够接收各stage的贡献，不需要为不含发送端的子组另做跨stage转发。
+
+```text
+第0层目录行：
+  PP0拥有参数的rank → 贡献实际变化
+  PP1不拥有参数的rank → count=0，仍参与目录与通信
+  重复的DP/CP副本 → 按contributes规则去重，不重复发送
+
+第24层目录行：
+  由拥有第24层的stage贡献，其他stage保持零count
+```
+
+具体层归属随PP/VPP布局变化，不应把PP0永远等同于第0～23层。所有rank需要共享一致的slot目录和顺序，才能按slot位置正确合并。
+
+进程组还决定通信范围与参与者；“组内rank0”不总是“全局rank0”。PP>1选择WORLD时两者相同。PP=1的TP/专家子组路径，需要结合后续发送端和副本去重逻辑理解，不能假定每个子组根节点都直接向推理侧发送。
+
+### 3.4 与probe的_ProbeGroup不是一回事
+
+表注：两个对象位于不同阶段；这里“真实通信”指实际跨训练rank交换数据，不是本地拼接列表。
+
+| 对象 | 用途 | 真实通信 |
+|---|---|---|
+| probe内部的_ProbeGroup | 保留TP/ETP size、rank等布局信息，阻止未适配通信 | 不执行真实权重gather |
+| 六元组里的gather_group | 合并各rank已经转换好的HF稀疏贡献 | 执行真实集合通信 |
+
+因此“probe不gather完整权重”和“后续按gather_group合并稀疏更新”并不矛盾。`gather_group`本身也不等于checksum、版本校验或事务保证，这些仍由同步协议负责。
+
+代码依据：[VIME导出与进程组选择](evidence/vime-export.txt)中的`build_export_index`；真实合并接口为源文件`vime/backends/megatron_utils/update_weight/delta_sync/sparse_gather.py`中的`gather_slot_entries_to_rank0(idx_concat, val_concat, counts, group, ...)`，由发送层消费六元组中的group并调用。现有[verl接口证据](evidence/verl-checkpoint-interface.txt)展示了`gq.put(pg, slots, dtype_str, counts, hf_idx, hf_val)`的接线。
+
 ## 4. 方法具体如何替换
 
 本地`make_probe`中的关键操作是：
