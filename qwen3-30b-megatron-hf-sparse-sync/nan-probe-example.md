@@ -87,6 +87,28 @@ tp_size=2、tp_rank=1
 
 #### B.4 为什么要处理AutoMapping内部delegate
 
+**白话理解：AutoMapping是“分派员”，delegate是它选中的“实际执行者”。** 分派员先看这个参数怎么切分，再选一个具体转换对象执行。delegate不是额外的rank、线程或通信进程，只是保存在AutoMapping内部的一个Python对象，通常放在`_mapping`属性里。
+
+例如，参数按输出维切分，就选择ColumnParallelMapping；按输入维切分，选择RowParallelMapping；每个rank都有完整副本，选择ReplicatedMapping。具体识别规则以所用Bridge版本和module属性为准。
+
+下面为解释用的伪代码，不是完整接口实现：
+
+```python
+class AutoMapping:
+    def __init__(self):
+        self._mapping = None  # 暂时还没选具体执行者
+
+    def megatron_to_hf(self, weight, module):
+        if self._mapping is None:
+            kind = self._detect_parallelism_type(module)
+            self._mapping = self._get_or_create_mapping(kind)
+
+        # AutoMapping做选择，具体转换交给选中的对象。
+        return self._mapping.megatron_to_hf(weight, module)
+```
+
+第一次调用才选择、创建执行对象，之后继续复用，这就是“延迟初始化”。`delegate`只是“被委托执行工作的对象”的叫法，不需要额外理解成一种新的并行机制。
+
 一个mapping可能包含多层委托，例如：
 
 ```text
@@ -98,7 +120,16 @@ QKVMapping
 
 只替换最外层对象的方法不够，真实通信可能由内部实现执行。若内部对象仍使用真实进程组，probe就可能意外触发集合通信。
 
+仍用白话说：只告诉分派员“不要去其他卡取数据”不够；真正出去取数据的执行者也必须改成“在本卡拿NaN占位”。Python对象的方法替换不会自动传递给它引用的其他对象。
+
 此外AutoMapping可能在第一次调用时才创建内部实现。若递归复制时delegate还不存在，复制过程就无法覆盖它；随后延迟创建的delegate可能重新取得真实进程组。
+
+```text
+复制时：_mapping还是None → 没有内部对象可以复制、替换
+运行时：第一次转换才创建实际mapping → 新对象可能仍走真实通信
+```
+
+因此需要先让执行者“就位”，再给它制作probe版本。`_warm_lazy_mappings`的warm在这里是提前初始化内部对象，不是先跑一次真实权重gather。
 
 本地实现的处理顺序是：
 
@@ -112,6 +143,23 @@ _warm_lazy_mappings(mapping, module)
 ```
 
 这些替换作用于probe副本，正常导出的mapping通信语义仍需保留。组替身`_ProbeGroup`提供真实size/rank；若某种未处理的通信操作直接访问该替身，应报错而不是悄悄按错误布局转换。warm失败会产生警告，不能把它理解成任意新mapping都能自动安全兼容。
+
+还有一个容易遗漏的点：`copy.copy()`只做浅复制。复制了外面的对象，不等于里面引用的对象也自动复制了一份。
+
+```text
+只浅复制外层时，可能是：
+原始AutoMapping ─┐
+                 ├→ 同一个内部ColumnParallelMapping
+probe外层副本 ──┘
+
+逐层复制并替换引用后，才是：
+原始AutoMapping → 原始ColumnParallelMapping（正常通信）
+probe副本      → ColumnParallelMapping副本（NaN占位模拟）
+```
+
+所以“递归复制”就是：顺着内部mapping一层层找下去，每层都复制一份，把父副本指向对应的子副本，并替换各副本的通信方法。不要直接修改原来的子对象，否则正常全量导出也可能被影响。提前warm会初始化原对象的延迟缓存，但通信替换应作用在probe副本上。
+
+总结这段接口逻辑：**先知道谁真正干活，让它提前创建出来，再逐层制作probe副本；保留TP布局规则，将副本的跨卡取数替换成本地NaN占位。**
 
 证据文件中对应`_ProbeGroup`、`_warm_lazy_mappings`、`make_probe`以及内部`_stub`、`_inject`函数。
 
