@@ -1,5 +1,7 @@
 # #492 原生引擎验证补充：不使用直接映射或 MoE 直写
 
+> 修正记录：补充审查发现，先前候选虽已移除 `HfWeightIteratorDirect`，共享模块仍有 `_direct_hf_delta_entry` 坐标直算分支。因此先前“无直接映射”的描述不完整。该分支现已删除，全部非空增量统一执行 Bridge converter。最终候选正在复测；下文先前测试数量属于修正前候选，不能直接作为 probe-only 版本通过证明。原生 Ascend 引擎和接收 e2e 没有变化。
+
 日期：2026-10-24，北京时间。此页记录本次独立验证，补充同目录的设计阅读快照；不把历史 #480 或旧扩展候选的性能归入本方案。
 
 证据入口：[本次测试输出与补丁审计](evidence-20261024/)。其中 `support-client.log` 包含 24 项兼容测试的 0.15 秒运行；`native-unit-client.log` 是同范围 0.17 秒复测，两者不累加。
@@ -63,11 +65,12 @@ sequenceDiagram
 
 真实 NPU 检查位于 192.168.13.188 的 `cjy-vllm-acend-1019` 容器，独立工作目录 `/home/w00899129/pr492-native18915-1024.2J8cpo`。使用 pinned Python 源码与容器已有原生库/CANN，不代表重新构建完整镜像验证。
 
-30B 三轮完整训练验证仍在准备/运行中，目前不能宣布其通过，也不能给出本方案的 30B 同步延迟或相对 #480 加速比。
+修正前的 30B 任务 `raysubmit_qiVq1Gqhjkh2maPv` 在首次 seed 阶段由测试方主动停止，用于切换到满足约束的 probe-only 版本。它没有完成三轮训练，不是通过结果。目前不能给出最终方案的 30B 同步延迟或相对 #480 加速比。
 
 ## 修改位置与逻辑
 
 - `vime/backends/megatron_utils/update_weight/update_weight_from_sparse_hccl.py`：Bridge 完整 seed；同一原生发送接口；发送前校验和设备规范化；推理 PP/PCP 前置检查。
+- `vime/backends/megatron_utils/update_weight/megatron_delta_export.py`：删除 `_direct_hf_delta_entry` 及其调用，非空增量一律经过 NaN buffer 和 Bridge `megatron_to_hf`；去掉仅供直算分支使用的 midpoint 处理。
 - `docker/npu_patch/vllm-ascend.patch`：原生 #18915 引擎和用例，不引入 MoE 直写。
 - `scripts/run-qwen3-30B-A3B-sparse-hccl.sh` 与对应测试：推理 PP1、TP4/EP4，训练保留 TP2/PP2/EP2。
 - `vime/backends/vllm_utils/vllm_engine.py`：正确选择 `ASCEND_RT_VISIBLE_DEVICES` 中已分配的离散物理设备，避免连续编号假设；此处是设备启动配置。
