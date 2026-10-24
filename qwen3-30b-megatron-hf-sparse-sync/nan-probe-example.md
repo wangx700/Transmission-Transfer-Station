@@ -39,6 +39,95 @@ mapping仍看到`tp_size=2`、`tp_rank=1`。不能简单把TP size改为1，否�
 
 证据：[make_probe通信stub与递归复制](evidence/vime-export.txt)。
 
+#### B.1 正常gather与本地模拟gather
+
+正常mapping调用`gather_from_tp_ranks`会获取真实分片列表：
+
+```text
+[TP0真实分片, TP1真实分片]
+```
+
+probe替换后的函数则只在本设备构造列表。下面为等价示意，不是生产代码的逐行摘录：
+
+```python
+def gather_from_tp_ranks(tensor):
+    nan = nan_block(tensor.shape, tensor.dtype, tensor.device)
+    out = [nan] * tp_size
+    out[tp_rank] = tensor
+    return out
+```
+
+列表长度、每块shape和本rank所在的位置与正常gather保持一致，但没有取回其他rank的真实数据。NaN占位同时表示其他rank的未知贡献；本地tensor中的NaN则表示本rank未变化的位置。
+
+#### B.2 为什么TP1必须放在列表位置1
+
+在本例中，TP0负责HF Q行[0,2048)，TP1负责[2048,4096)。TP1的模拟结果必须是`[NaN, local]`；如果写成`[local, NaN]`，mapping可能把该贡献映射到TP0负责的HF位置。
+
+```text
+正确：TP1本地Q位置 → HF Q全局行2048以后
+错误：把TP1分片放到位置0 → 可能错误落到HF Q前半部分
+```
+
+因此NaN块不仅补齐shape，也保留了各rank在全局张量中的位置关系。实际Megatron QKV还包含query-group排列，具体全局坐标继续由真实mapping计算，不能简单把所有本地flat index统一加一个常数。
+
+#### B.3 为什么不能将tp_size改成1
+
+`tp_rank=1`表示TP组中第二个rank；`tp_size=1`表示整个TP组只有一个rank，两者含义不同。
+
+若将size改为1，mapping会按单rank布局计算，可能认为本地分片已经是完整输入，从而改变拼接、reshape、head/group维度和反交错规则。
+
+probe要做到的是：**保留TP2的转换规则，只将其他rank的数据替换为NaN**。这里也不要求每种mapping都显式读取rank字段；即便它只读取size或gather列表，仍需要保留真实布局信息。
+
+```text
+tp_size=2、tp_rank=1
+  → 模拟[NaN分片, 本rank底板]
+  → 按真实TP2规则转换
+  → 输出完整HF shape，其中只有本rank变化位置非NaN
+```
+
+#### B.4 为什么要处理AutoMapping内部delegate
+
+一个mapping可能包含多层委托，例如：
+
+```text
+QKVMapping
+  → _tp_mapping：AutoMapping
+      → _mapping：Column/Row/Replicated等实际实现
+          → gather_from_tp_ranks(...)
+```
+
+只替换最外层对象的方法不够，真实通信可能由内部实现执行。若内部对象仍使用真实进程组，probe就可能意外触发集合通信。
+
+此外AutoMapping可能在第一次调用时才创建内部实现。若递归复制时delegate还不存在，复制过程就无法覆盖它；随后延迟创建的delegate可能重新取得真实进程组。
+
+本地实现的处理顺序是：
+
+```text
+_warm_lazy_mappings(mapping, module)
+  → 确保可识别的AutoMapping实际delegate已创建
+  → copy.copy(mapping)
+  → 替换当前副本的进程组引用和gather方法
+  → 遍历内部MegatronParamMapping对象
+  → 对子mapping重复warm、复制、替换
+```
+
+这些替换作用于probe副本，正常导出的mapping通信语义仍需保留。组替身`_ProbeGroup`提供真实size/rank；若某种未处理的通信操作直接访问该替身，应报错而不是悄悄按错误布局转换。warm失败会产生警告，不能把它理解成任意新mapping都能自动安全兼容。
+
+证据文件中对应`_ProbeGroup`、`_warm_lazy_mappings`、`make_probe`以及内部`_stub`、`_inject`函数。
+
+#### B.5 完整接口关系与适用边界
+
+```text
+local_indices + current_values
+  → 填入本地Megatron shape的NaN底板
+  → rec.probe.megatron_to_hf(buf, rec.module)
+  → 内部gather调用被替换为本地列表合成
+  → 原mapping继续执行真实TP布局的拆分/重排
+  → 提取HF输出中非NaN的位置和值
+```
+
+probe本身不取回其他rank的真实权重，但初始化slot元数据交换和后续稀疏条目合并仍有通信。该方法依赖转换主要是拆分、拼接、重排；若跨分片做算术混合，NaN可能传播，需另行适配并做真实转换与probe合并的差分验证。
+
 ### 步骤C：运行真实mapping的拆分/重排
 
 ```python
