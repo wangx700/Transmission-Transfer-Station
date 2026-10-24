@@ -63,6 +63,26 @@
   → Agent 宿主执行工具并回传
 ```
 
+### 1.2.1 昇腾侧要做的适配（RL 推理场景）
+
+这 5 个改动里没有一个能直接搬到 NPU：硬件门禁不适用、Hopper 打分核不可移植、FlashInfer 依赖不存在。真正要落的是**等价语义 + 可复现性**，逐条如下。
+
+| 上游改动 | 昇腾侧现状 | 还要做的工作（RL 场景的验收口径） | 落点 / 优先级 |
+|---|---|---|---|
+| ① 后端准入（SM90/SM103 门禁、`supports_compute_capability`） | 无 SM 门禁；等价门禁在 `models/step5/dsa_attention.py` 与 `ascend_config.py`（`step5_prefill_mnd_slot_allocator` 默认 `default`，`:253`/`:389`） | 把"能不能跑"变成**启动即失败**：cann-ops 版本、`IndexerRegionScore`/`GenericBlockSparseAttention` 签名、`prefix_match_unit` 对齐三项前置检查，报错给出可用集合。RL 意义：能力缺失若拖到 rollout 中途才炸，训练侧只看到"空轨迹/低奖励"，无法定位 | `dsa_attention.py`、`ascend_config.py`；**P2-2** |
+| ② 按设备选打分核（`flashinfer_sparse.py:46-49`） | 单一路径：aclnn `IndexerRegionScore`（`indexer_region_score.py:82/88`） | 不搬设备二分，只把"打分实现可替换"收敛在适配层，不在 `summary_cache.py` 里写死调用点；换核后必须保证 **ids 序列不变**。RL 意义：内核可替换是优化，但 replay 要求同输入同输出 | `models/step5/dsa_attention.py`（`AscendStep5DSABackend` 边界）；**P0-1 的前置** |
+| ③ Hopper 摘要页打分核（`sparse_indexer_scores.py:274`，FP8 打包、超界置 −inf） | 语义已等价：`indexer_region_score.py` 用 `actual_kv_lengths` 驱动因果上界（算子自推每行可见 region 上界 `floor((ctx+j)/8)`，当前 region 不占槽） | 不移植核，**移植测试构造**：有效长度边界（padding/超界）+ 打包 scales 两组用例，断言"越界区域永不被选中、`-1` 只做尾填充"。RL 意义：越界 token 若进注意力，轨迹与训练端立刻分叉 | `tests/e2e/nightly/.../test_indexer_region_score.py`、`tests/ut/models/test_step5_model.py`；**P0-1** |
+| ④ top-k 确定性与 `select_regions` 布局 | 已有三重保障：`VLLM_STEP5_DSA_FORCE_STABLE_TOPK` 默认 True（`envs.py:292`）、aclnn `sort_mode=1` 升序、GBSA `_append_current_region_kernel` 升序追加不挤选中项 | 补**跨平台对齐用例**：同一份构造 scores（含平票、`top_k=2/7/512`、page boundary、超有效长度）分别喂 aclnn 与 CuTeDSL 选择器，断言 `ids` 逐元素一致。RL 意义：这是 rollout 可重放的**唯一**数值前提 | `tests/ut/models/test_step5_model.py`（新增参数化）；**P0-1，最高优先** |
+| ⑤ 硬件覆盖与一致性测试矩阵 | 本项目已有 Step5 测试：`tests/kernels/core/test_step5_*`（4 个）、`tests/v1/attention/test_step5_*`（2 个）、`tests/ut/models/test_step5_model.py`、nightly `test_step5_decode_sparse_meta.py` | 把上游三张表（top-k=2/7/512、page boundary、打包 scales）平移成 aclnn 侧参数化用例——这三处正是 `indexer_region_score` + GBSA 契约最容易错的地方 | 同上；**P0-1 的一部分** |
+
+**RL 场景还要额外盯的 5 条（上游 tracking 分支不覆盖）**
+
+1. **MTP ≤ 3 与投机解码**：接受率与 logprob 一致性要单独验；昇腾侧已有 `test_step5_mtp_state_machine.py`，缺"MTP 开启 vs eager 的逐 token logprob one-ULP 对比"。
+2. **batch 不变性**：同请求换 batch 组成会漂 logits → 直接污染奖励；需做 GEMM tile 分桶是否依赖 M 的自查（**P0-3**）。
+3. **长上下文 rollout（128K→512K→1M）**：CSA 槽位容量、sidecar 显存、prefix 重算（**P2-1**）。
+4. **大 EP 下的 MC2 dispatch 稳定性**：10-20 已出现 `MoeDistributeDispatchV3` 超时，属运行期风险（**P1-1**）。
+5. **前缀缓存与上下文治理**：CLM/压缩会改写前缀键，命中率须可解释（**P1-3**）。这 5 条的判据与落点见 2.4、2.6。
+
 ## 1.3 Agent 侧：Step-Code 提交与逻辑
 
 Step-Code 是本区间**唯一持续更新**的对象。下表按合并时间（北京时间）列出 10-05 → 10-23 的**全部合入 PR**，不按 10-20 分段；「修改内容」为按标题与提交意图归纳的实际改动，「昇腾适配」给出是否需要跟着改的判断及理由。
