@@ -9,6 +9,8 @@
 > **方法边界**：公开 API/仓库/文档核查 + 本项目本地源码实测。**未**做真机推理、性能复测、昇腾算子数值验证；未修改任何业务代码。PR 号可直接拼 `https://github.com/<org>/<repo>/pull/<号>` 访问。
 > **主线定位**：全文按两条主线展开——**RL 场景的推理侧**（以 Step 5 的引擎改动与 RL 专属关注点为载体，见 1.2 与 2.6）与 **Agent 侧**（Step-Code 会话、子 Agent 编排、上下文/前缀治理）。Step 5 Preview 官方技术文档与 StepAudio 3 只作口径与边界记录（见 1.4），不构成主线结论；batch 一致性 / DSA 索引回放 / LoRA 等生态线不在本文记录，由本仓各跟踪目录（`batch-consistency-weekly/`、`dsa-index-replay/`、`lora-progress-tracking/`、`rl-replay-consistency/`）维护。
 
+> **术语看不懂？** 配读 [`名词速查与通俗解读-20261023.md`](名词速查与通俗解读-20261023.md)：名词逐条翻译成人话、1.2 与 1.3 的通俗版、六个常见疑问，以及五分钟通读路径。
+
 ---
 
 # 一、社区更新点
