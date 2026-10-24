@@ -46,3 +46,7 @@
 ## Qwen3-30B-A3B 稀疏权重同步
 
 - [Megatron → HF → 推理侧权重分片与 slot 六元组](qwen3-30b-megatron-hf-sparse-sync/README.md)：TP2/PP2/EP2 下的 QKV、MoE name/shape、训练与推理并行差异、NaN probe 操作示例、可运行教学脚本及代码证据。
+
+## 并行策略说明
+
+- [TP、PP、EP、ETP 与 DP 的关系](并行策略说明/README.md)：Qwen3-30B-A3B 的4卡ETP1与8卡ETP2分布、DP推导、专家权重shape及默认值说明。
