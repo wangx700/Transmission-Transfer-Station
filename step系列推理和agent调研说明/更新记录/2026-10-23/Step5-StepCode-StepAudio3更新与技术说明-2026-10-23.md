@@ -50,30 +50,23 @@
   → Agent 宿主执行工具并回传
 ```
 
-## 1.3 Agent 侧：Step-Code 两段窗口
+## 1.3 Agent 侧：Step-Code 提交与逻辑
 
 Step-Code 是本区间**唯一持续更新**的对象。日期以进入 `main` 的时间为准。
 
-**10-05 → 10-20（91 条提交 / 27 merge / 64 非 merge）**
-
-| 日期 | 主要变化 | 逻辑与意义 |
-|---|---|---|
-| 10-08 | 远程 Step Plan 登录、`then_run` 动作衔接 | #222、#217：远程终端认证与动作执行衔接 |
-| 10-09～10-10 | 后台子 Agent 结果、父会话唤醒、通知修复 | #227、#230、#233：链式任务返回最后结果，后台结束唤醒父会话 |
-| 10-10～10-11 | `/effort` 统一；Full Access；CLM 成为默认压缩 | #234、#235、#232：推理强度入口、权限层级、长会话上下文维护 |
-| 10-12 | Ultracode 会话状态持久化；Windows Git Bash 与 Skills 诊断 | #245、#241、#243：会话恢复后不丢编排模式 |
-| 10-14 | workflow 生命周期、并发、重试与恢复；`then_run` 走 `run_command` | #249、#248：取消先排空子任务，共享并发准入，区分限流与额度耗尽 |
-| 10-15～10-16 | system role；usage/status；独立任务 review 与工具可用性 | #252、#251、#242：协议兼容、消耗观测、任务检查 |
-| 10-19 | 稳定 live-context notices；SQLite 会话搜索；session 刷新 | #267、#266、#261：保护追加式前缀稳定、会话检索、认证续期 |
-| 10-20 | 飞书连接与镜像审批、最近模型、`/btw`、终端状态 | #260、#259、#268、#274、#271：扩展同一会话的交互渠道 |
-
-**10-20 → 10-23（+16 条，13 非 merge）**
-
-| 时间（+08） | SHA | 主题 | 相关性 |
+| 时间（+08） | 提交 / PR | 变化与逻辑 | 与本项目相关性 |
 |---|---|---|---|
+| 10-08 | #222、#217 | 远程 Step Plan 登录；`then_run` 动作衔接（远程终端认证与动作执行衔接） | 无 |
+| 10-09～10-10 | #227、#230、#233 | 后台子 Agent 结果、父会话唤醒与通知修复：链式任务返回最后结果，后台结束唤醒父会话，通知携带完整结果 | 无 |
+| 10-10～10-11 | #234、#235、#232 | `/effort` 统一；Full Access；CLM 成为默认压缩方式（推理强度入口、权限层级、长会话上下文维护） | 方法同向（上下文成本） |
+| 10-12 | #245、#241、#243 | Ultracode 会话状态持久化；Windows Git Bash 与 Skills 诊断修复（会话恢复后不丢编排模式） | 无 |
+| 10-14 | #249、#248 | workflow 生命周期、并发、重试与恢复；`then_run` 走 `run_command`（取消先排空子任务、共享并发准入、区分限流与额度耗尽） | 无 |
+| 10-15～10-16 | #252、#251、#242 | system role 兼容；usage/status；独立任务 review 与工具可用性（协议兼容、消耗观测、任务检查） | 无 |
+| 10-19 | #267、#266、#261 | 稳定 live-context notices；SQLite 会话搜索；session 刷新（保护追加式前缀稳定、会话检索、认证续期） | 方法同向（前缀稳定） |
+| 10-20 | #260、#259、#268、#274、#271 | 飞书连接与镜像审批、最近模型、`/btw`、终端状态与 Windows 更新修复 | 无 |
 | 10-21 10:57 | `1ccfa0819d` | `fix(cli)`：命令预览按终端宽度自适应 | 无（UI） |
 | 10-21 11:35 | `7ae808a7b9` | Merge #275 | — |
-| 10-21 17:32 | `143a9d232a` | `fix(compaction)`：未完整流重试 + 持久化安全失败诊断 | 方法同向 |
+| 10-21 17:32 | `143a9d232a` | `fix(compaction)`：未完整流重试 + 持久化安全失败诊断 | 方法同向（压缩失败面） |
 | 10-21 17:35 | `118348c05c` | `feat(subagent)`：模型自选前台/后台泳道（#282） | 无 |
 | 10-21 17:35 | `993e714243` | `fix(workflow)`：`phase()` 误用直接报错（#283） | 无 |
 | 10-21 17:40/17:41 | `9cc8064` / `8d98d4b` | Merge #284 / #279 | — |
@@ -82,9 +75,11 @@ Step-Code 是本区间**唯一持续更新**的对象。日期以进入 `main` �
 | 10-22 16:44 / 17:05 | `50aad0a962` / `3de15c1659` | `fix(coding-agent)`：**保留 task-state prompt cache 前缀**（#293） | **强相关**：前缀稳定是 prefix cache 命中前提 |
 | 10-23 13:32 | `b0a129753d` | `feat(cli)`：`-C/--cwd`（#289） | 无 |
 | 10-23 13:33 | `29b02e1ac1` | `fix(cli)`：Enter 保存模型选择为默认（#285） | 无 |
-| 10-23 13:42 | `a749d471de` | `fix`：plan mode 下工具块稳定（#296） | 无（稳定前缀一类） |
+| 10-23 13:42 | `a749d471de` | `fix`：plan mode 下工具块保持稳定（#296） | 无（稳定前缀一类） |
 | 10-23 14:23 | `a12325d322` | `fix`：扩展命令轮次先结算（#298） | 无 |
 | 10-23 14:28 | `81e79bc4b6` | `feat`：反馈报告可调查（#297） | 无 |
+
+表注：10-20 之前按日期区间汇总（91 条提交 / 27 merge / 64 非 merge），10-20 之后逐条列出（16 条 / 13 非 merge）；同一时段内的 PR 号可拼 `https://github.com/stepfun-ai/Step-Code/pull/<号>` 访问。
 
 **请求流程**：
 
@@ -196,24 +191,9 @@ vLLM 侧 Step5 LoRA 已合入 #62498，而本项目 `vllm_ascend/lora` 无任何
 
 ---
 
-# 三、当前任务项进展
+## 2.5 本项目自有 fork 的增量（对标基线，非任务进展）
 
-统计口径：任务项按本仓跟踪目录划分，状态以 10-23 本地核对为准；"证据入口"为仓库内相对路径。
-
-| # | 任务项 | 状态 | 本期产出（10-05→10-23） | 证据入口 | 下一步 |
-|---|---|---|---|---|---|
-| 1 | **Step 5 / Step-Code / StepAudio 3 侦查与交付** | 本期完成，持续跟踪 | 10-20 归档版；10-23 统一版（本文）；路径映射表；10-20 MC2 超时摘录 | `更新记录/2026-10-23/`、`2026-10-20/` | 上游 tracking 分支下次有提交时增量刷新（当前停在 10-10） |
-| 2 | **vLLM / vllm-ascend Batch 一致性周报** | 周更，正常 | 10-16→10-23 阶段变化 + 整体报告刷新到 10-23 HEAD + DeepInfer V4.1 BI 专题 | `batch-consistency-weekly/` | 三个 P0：verl 指标接入、GEMM 分桶自查、图回放回归矩阵（已并入 2.4） |
-| 3 | **DSA Index Replay 上游跟踪** | 周更，等待上游收敛 | 三主线仍无完整采集返回；vLLM #62915 Draft 与 #49555 并行；vllm-ascend #19220/#19190 合入 | `dsa-index-replay/` | 8 项待办按前置条件分组：不等上游 3 项先行、依赖收敛 2 项、同步验证 3 项 |
-| 4 | **非量化 LoRA 进度跟踪** | 周更，正常 | SGLang 路线更替 #45892；vLLM Step5 LoRA #62498；vllm-ascend 零改动 | `lora-progress-tracking/` | P0 三项（V4.1 wo_a 分组输出、compressor 接入、MLA Q/V 增量 + kv_b-only 显式拒绝） |
-| 5 | **RL Replay 六特性** | 主报告完成，两项受限 | M/R/L/B 主线已有；I（Index）与 H（Hidden States）外部回传未合入；HiddenStates Ascend 映射 10-23 专题 | `rl-replay-consistency/` | I/H 按"未合入"单独推进，不与已有四项合并验收 |
-| 6 | **Sparse HCCL 权重更新（PR #18915）** | 材料已归档，真机验证完成 | 10-21 真机验证：74 个 UT（sparse 49 + routed 25）+ 6 个 E2E（4 真实 HCCL + 2 CPU 布局）全通过，另有反向回归 | `vllm-ascend-pr18915-sparse-hccl/` | 跟踪 PR 后续 diff；结论需按提交差异复核 |
-| 7 | **Qwen3-30B-A3B Megatron→HF→推理权重同步** | 资料完成（10-22） | TP2/PP2/EP2/ETP2 8 卡下的 QKV/MoE name-shape 映射、slot 六元组、NaN probe 教程与可运行脚本 | `qwen3-30b-megatron-hf-sparse-sync/` | 按目标模型扩展到 Step5 权重布局 |
-| 8 | **Replay 流程图集** | 完成（10-23） | 总览 + 8 张流程图（PNG/SVG/Mermaid 源）+ 组合约束 + 一致性诊断闭环 | `replay-flowcharts/` | 随 2/3/5 三项状态变化重导出 |
-| 9 | **本项目 Step5 昇腾落地（自有 fork）** | 代码链已打通，验证未闭环 | vllm-ascend `main@80d265f1`（#41/#44/#50/#54/#55/#65/#66）；vLLM 侧 `water18@5d7f9124`（缺 `e177c621`） | `vllm/`、`vllm-ascend/`、`upstream-step5-reference/` | 2.4 的 P0-1/P0-4/P1-1 起 |
-| 10 | **10-20 MC2 dispatch 超时诊断** | 已定位调用点，根因未定 | 故障原文摘录；排除 HCCL/UDMA 噪声；锁定 `token_dispatcher.py:232` | `2026-10-23/附件-MoeDistributeDispatchV3超时摘录-20261020.txt` | 核对 torch_npu 版本与 v2→V3 映射（P1-1） |
-
-**本项目自身增量说明（任务项 9 展开）**
+本节只陈述已实测的代码事实，用于判断上游对标口径；任务状态与人力见第三、四块（本期暂空）。
 
 | 本地路径 | 分支 / HEAD | 日期 | 内容 |
 |---|---|---|---|
@@ -224,47 +204,19 @@ vLLM 侧 Step5 LoRA 已合入 #62498，而本项目 `vllm_ascend/lora` 无任何
 
 - 前两个 checkout 的 `origin` **是同一个私有 fork** `github.com/earthmanylf/vllm-ascend-step4`，只是检出分支不同（不是两个独立仓库）。
 - vllm-ascend 区间内主要工程动作是 **#50（aclnn 替换）→ #55（接口拆分）→ #65（接口 churn 修复）** 这条链。
-- 本地对象库**没有** `e177c621`（`git cat-file` 失败）；公开分支在 09-21～10-10 有 26 个 Step5 提交（`Sync with upstream (#10)` 另带入上游主线提交，`compare` 的 `total_commits` 为 2220，不能当 Step5 提交数引用）。数组里 `water18` 用 `cute_dsl`，公开分支用 `flashinfer`，两棵树不可混用行号。
+- 本地对象库**没有** `e177c621`（`git cat-file` 失败）；公开分支在 09-21～10-10 有 26 个 Step5 提交（`Sync with upstream (#10)` 另带入上游主线提交，`compare` 的 `total_commits` 为 2220，不能当 Step5 提交数引用）。两棵树里 `water18` 用 `cute_dsl`，公开分支用 `flashinfer`，两棵树不可混用行号。
+
+---
+
+# 三、当前任务项进展
+
+> **待补（本期暂空）**。任务项进展不在本版填写；各工作流当前状态与证据入口已在仓库对应目录中维护：`batch-consistency-weekly/`、`dsa-index-replay/`、`lora-progress-tracking/`、`rl-replay-consistency/`、`vllm-ascend-pr18915-sparse-hccl/`、`qwen3-30b-megatron-hf-sparse-sync/`、`replay-flowcharts/`。待确认后按「状态 / 本期产出 / 证据入口 / 下一步」四列补齐。
 
 ---
 
 # 四、人力投入矩阵与日常活动
 
-> **重要口径**：本仓所有材料均未记录人员姓名与工时，以下"投入形态"由**可观测产出**（提交、周报、验证记录、归档材料）反推，**人名与 FTE 列留待补充**（见 4.3）。任何人数字段不得在未确认的情况下对外引用。
-
-## 4.1 投入矩阵（工作流 × 角色 × 投入形态）
-
-| 工作流 | 主要角色 | 投入形态（可观测证据） | 建议 FTE 形态 | 状态 |
-|---|---|---|---|---|
-| Step5 / Step-Code / StepAudio 3 侦查 | 推理系统调研 + 文档 | 两轮交付（10-20 归档、10-23 统一版）；1 份路径映射表；1 份故障摘录 | 0.3～0.5 FTE 持续（上游静止期更低） | 已交付，待补人名 |
-| vLLM / vllm-ascend Batch 一致性 | 推理正确性 + 算子 | 每期阶段变化说明 + 整体报告刷新 + PR diff 证据；DeepInfer V4.1 专题 | 0.5 FTE（周更 + 专题） | 已交付，待补人名 |
-| DSA Index Replay 跟踪 | 稀疏注意力 + 训练对接 | 状态报告 + 阶段变化 + 单 PR 说明 + 核查证据 | 0.3～0.5 FTE（等上游收敛） | 已交付，待补人名 |
-| 非量化 LoRA 跟踪 | 模型适配 | 两期阶段进展 + 支持与工作报告 + merged-PR JSON | 0.3 FTE | 已交付，待补人名 |
-| RL Replay 六特性 | 训练推理一致性 | 六特性汇总 + 数据格式附录 + HiddenStates Ascend 映射 + 证据 | 0.5 FTE | 已交付，待补人名 |
-| Sparse HCCL PR #18915 | 通信 + 权重更新 | UML 时序 + 核心代码 + 80 项用例说明 + 10-21 真机验证记录 | 0.5 FTE（含真机窗口） | 已完成，待补人名 |
-| Qwen3-30B 权重同步 | 训练—推理对齐 | 流程与接口文档 + NaN probe 教程 + 可运行脚本 + 代码证据 | 0.3 FTE（一次性） | 已完成，待补人名 |
-| Replay 流程图集 | 文档/可视化 | 8 张图 + 导出脚本 + 读图规则 | 0.2 FTE（一次性） | 已完成，待补人名 |
-| 本项目 Step5 昇腾落地 | 昇腾适配 + 算子 | 30 个 Step5 相关提交（含 #50/#55/#65）、1 份结构分析报告、并行冒烟脚本 | ≥1 FTE（当前最大投入项） | 进行中，待补人名 |
-| 故障诊断（MC2 超时） | 现场 + 通信 | plog 摘录、噪声排除、调用点定位 | 事件驱动（约 1 人日/次） | 待验证，待补人名 |
-
-## 4.2 日常与周期性活动（节奏来自材料时间戳）
-
-| 节奏 | 活动 | 证据 |
-|---|---|---|
-| 每日/随时 | 上游 commit 与 PR 状态巡检（`main` / `step-5-preview-tracking` / vllm-ascend / SGLang） | 各跟踪目录的 `核对日期` 与 `origin/main` fetch 记录 |
-| 每周 | 周报窗口（10-10→10-16、10-16→10-23 两期格式一致），产出阶段变化说明 + 新增跟踪项 | `batch-consistency-weekly/consistency_changes_*.md`、`lora-progress-tracking/LoRA阶段进展*.md` |
-| 每期 | PR 级证据归档（合入 SHA、diff、状态 JSON） | `*/evidence/README.md`、`lora-progress-tracking/evidence/merged-prs-*.json` |
-| 按需 | 专题深挖（DeepInfer V4.1 BI、HiddenStates Ascend 映射、PR #62915、Step5 结构分析） | `deepinfer_v41_batch_invariance.md`、`HiddenStates回放进展与Ascend映射_2026-10-23.md`、`DSA_index_replay_PR62915_说明.md`、`Step5_模型结构分析报告.md` |
-| 事件驱动 | 真机验证（10-21 Sparse HCCL：74 UT + 6 E2E）与线上故障诊断（10-20 MC2 超时） | `vllm-ascend-pr18915-sparse-hccl/validation/`、`diagnostics/20261020_191341/` |
-| 每月/季度 | 文档入库与目录同步（README 索引、历史目录标注归档） | 本仓 README 与 `更新记录/` 目录结构 |
-
-## 4.3 需要补充确认的字段（当前材料无法支撑）
-
-1. **人员与归属**：4.1 各行对应的人名/团队（现有材料只有"报告作者完成源码核查"这类匿名表述）。
-2. **FTE 与周期**：上表"建议 FTE 形态"为按产出反推的估计，需与实际工时台账对齐后替换。
-3. **验收口径**：各工作流是否已进入部门/项目级里程碑，还是仍属自主跟踪（影响是否需要周会汇报）。
-4. **协作依赖**：Step5 落地与 Batch 一致性、LoRA、DSA 三项的排期是否共享同一批人（当前看不出是否串行）。
-5. **对外口径**：本文与四块内容是否对外发布，若不发布请标注内部使用。
+> **待补（本期暂空）**。人员、归属与工时台账未纳入本次材料，人力投入矩阵与日常活动节奏待补充后填写；现阶段不得引用任何未确认的人数与 FTE 数字。
 
 ---
 
@@ -322,4 +274,4 @@ git -C vllm/vllm-ascend-step4 remote -v         → earthmanylf/vllm-ascend-step
 3. 未做 `e177c621` 与 `water18` 的逐提交 diff，只证明"两棵树不同 + 本地缺该对象"。
 4. 未审计上游合流：Step5 能力只在 `step-5-preview-tracking`，未逐 commit 审计是否/何时进 vLLM main。
 5. 未做 cann-ops 版本矩阵：`IndexerRegionScore` / `GenericBlockSparseAttention` 在 ≥9.2.0-beta.2 上的签名差异未逐一验证（#65 已 churn 一次）。
-6. 第三、四块的其他工作流数据引自本仓各跟踪目录 10-23 核对结论，本文未重新核对其实验数据；人力相关字段未获取来源（见 4.3）。
+6. 第三、四块本期暂空；其余工作流数据引自本仓各跟踪目录 10-23 核对结论，本文未重新核对其实验数据，人力相关字段未获取来源。

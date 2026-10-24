@@ -2,7 +2,7 @@
 
 ## Step 5、Step-Code 与 StepAudio 3 阶段更新
 
-- [2026-10-05 至 10-23 阶段更新（统一版，四块式）](step系列推理和agent调研说明/更新记录/2026-10-23/Step5-StepCode-StepAudio3更新与技术说明-2026-10-23.md)：**当前阅读入口**。按四块组织：**一 社区更新点**（vLLM `step-5-preview-tracking` 10-10 后无新提交、Step-Code 两段窗口 107 条提交、vLLM/vllm-ascend/SGLang/verl 同期变化、Step 5 Preview 与 StepAudio 3 文档口径）；**二 昇腾需要关注的点**（SM90 不可外推、行号口径、cann-ops churn、sidecar×KV 迁移互斥、MC2 超时，加可用/部分可用/不可用三分类与 P0–P2 待办）；**三 当前任务项进展**（10 项工作流的状态、本期产出、证据入口与下一步）；**四 人力投入矩阵与日常活动**（工作流×角色×投入形态、周更/事件驱动节奏；人名与 FTE 待补）。附 [路径映射表](step系列推理和agent调研说明/更新记录/2026-10-23/本项目路径映射-20261023.tsv)、10-20 MC2 dispatch 超时故障摘录与 6 条口径订正。
+- [2026-10-05 至 10-23 阶段更新（统一版，四块式）](step系列推理和agent调研说明/更新记录/2026-10-23/Step5-StepCode-StepAudio3更新与技术说明-2026-10-23.md)：**当前阅读入口**。按四块组织：**一 社区更新点**（vLLM `step-5-preview-tracking` 10-10 后无新提交、Step-Code 107 条提交单表列到 10-23、vLLM/vllm-ascend/SGLang/verl 同期变化、Step 5 Preview 与 StepAudio 3 文档口径）；**二 昇腾需要关注的点**（SM90 不可外推、行号口径、cann-ops churn、sidecar×KV 迁移互斥、MC2 超时，加可用/部分可用/不可用三分类、P0–P2 待办与自有 fork 增量）；**三 当前任务项进展**、**四 人力投入矩阵与日常活动**：本期暂空，待补。附 [路径映射表](step系列推理和agent调研说明/更新记录/2026-10-23/本项目路径映射-20261023.tsv)、10-20 MC2 dispatch 超时故障摘录与 6 条口径订正。
 - [2026-10-05 至 10-20 更新与技术说明](step系列推理和agent调研说明/更新记录/2026-10-20/Step5-StepCode-StepAudio3更新与技术说明.md)：当日归档（10-23 上传），内容已并入上方统一版，保留原发布结论以备追溯；同目录含[提交清单](step系列推理和agent调研说明/更新记录/2026-10-20/Step-Code-commits-20261005-20261020.tsv)与[关键提交 patch 证据](step系列推理和agent调研说明/更新记录/2026-10-20/vllm-step5-e177c621-commit.json)。
 
 
