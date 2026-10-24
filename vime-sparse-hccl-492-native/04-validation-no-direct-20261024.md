@@ -2,6 +2,8 @@
 
 日期：2026-10-24，北京时间。此页记录本次独立验证，补充同目录的设计阅读快照；不把历史 #480 或旧扩展候选的性能归入本方案。
 
+证据入口：[本次测试输出与补丁审计](evidence-20261024/)。其中 `support-client.log` 包含 24 项兼容测试的 0.15 秒运行；`native-unit-client.log` 是同范围 0.17 秒复测，两者不累加。
+
 ## 实现约束和接口流程
 
 VIME sparse updater 不导入或使用 `HfWeightIteratorDirect`。首次完整 seed 和后续 NaN probe 都经过 `HfWeightIteratorSparseBridge` / Megatron-Bridge；Ascend 不增加 `sparse_moe_direct`，不直接寻址 MoE runtime 参数。

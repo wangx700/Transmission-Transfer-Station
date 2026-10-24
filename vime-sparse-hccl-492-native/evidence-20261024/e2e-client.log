@@ -1,0 +1,17 @@
+/root/.bashrc: line 36: /usr/local/Ascend/ascend-toolkit/set_env.sh: No such file or directory
+============================= test session starts ==============================
+platform linux -- Python 3.12.13, pytest-8.3.2, pluggy-1.7.0
+rootdir: /home/w00899129/pr492-native18915-1024.2J8cpo/ascend
+configfile: pyproject.toml
+plugins: xdist-3.6.1, anyio-4.15.1
+collected 2 items
+
+tests/e2e/pull_request/eight_card/test_sparse_hccl_checkpoint.py ..      [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/python3.12.13/lib/python3.12/site-packages/torch/jit/_script.py:362: 14 warnings
+  /usr/local/python3.12.13/lib/python3.12/site-packages/torch/jit/_script.py:362: DeprecationWarning: `torch.jit.script_method` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 2 passed, 14 warnings in 245.06s (0:04:05) ==================

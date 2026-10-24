@@ -1,0 +1,23 @@
+/root/.bashrc: line 36: /usr/local/Ascend/ascend-toolkit/set_env.sh: No such file or directory
+tar: vime/vime/backends/vllm_utils/vllm_engine.py: time stamp 2026-10-24 22:14:42.6444912 is 350.773021284 s in the future
+tar: vime/tests/utils/test_vllm_engine.py: time stamp 2026-10-24 22:14:42.648043 is 350.776325238 s in the future
+============================= test session starts ==============================
+platform linux -- Python 3.12.13, pytest-8.3.2, pluggy-1.7.0
+rootdir: /home/w00899129/pr492-native18915-1024.2J8cpo/vime
+configfile: pyproject.toml
+plugins: platformdirs-4.13.5, hydra-core-1.3.2, xdist-3.6.1, anyio-4.15.1
+collected 75 items
+
+tests/utils/test_vllm_engine.py ........................................ [ 53%]
+...................................                                      [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/python3.12.13/lib/python3.12/site-packages/torch/jit/_script.py:362: 14 warnings
+  /usr/local/python3.12.13/lib/python3.12/site-packages/torch/jit/_script.py:362: DeprecationWarning: `torch.jit.script_method` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+============================== slowest durations ===============================
+
+(225 durations < 0.005s hidden.  Use -vv to show these durations.)
+======================= 75 passed, 14 warnings in 9.85s ========================

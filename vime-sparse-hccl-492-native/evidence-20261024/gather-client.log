@@ -1,0 +1,51 @@
+/root/.bashrc: line 36: /usr/local/Ascend/ascend-toolkit/set_env.sh: No such file or directory
+
+../training-deps/mcore/megatron/core/tensor_parallel/random.py:28
+  /home/w00899129/pr492-native18915-1024.2J8cpo/training-deps/mcore/megatron/core/tensor_parallel/random.py:28: DeprecationWarning: Using deprecated internal API from Transformer Engine. transformer_engine.pytorch.fp8 will be removed in a future release.
+    from transformer_engine.pytorch.fp8 import FP8GlobalStateManager, fp8_autocast
+
+../training-deps/mcore/megatron/core/inference/contexts/__init__.py:9
+  /home/w00899129/pr492-native18915-1024.2J8cpo/training-deps/mcore/megatron/core/inference/contexts/__init__.py:9: DeprecationWarning: The following imports from `dynamic_context.py` will be removed in this file in `megatron-core` 0.14. The imports here result in a cyclic import issue that causes rotary embeddings to import from Apex rather than Transformer Engine.
+    warnings.warn(
+
+../training-deps/mcore/megatron/core/models/backends.py:21
+  /home/w00899129/pr492-native18915-1024.2J8cpo/training-deps/mcore/megatron/core/models/backends.py:21: UserWarning: Apex is not installed. Falling back to Torch Norm
+    warnings.warn("Apex is not installed. Falling back to Torch Norm")
+
+../training-deps/mcore/megatron/core/transformer/multi_latent_attention.py:38
+  /home/w00899129/pr492-native18915-1024.2J8cpo/training-deps/mcore/megatron/core/transformer/multi_latent_attention.py:38: DeprecationWarning: The 'megatron.core.transformer.custom_layers.transformer_engine' 
+      module is deprecated and will be removed in 0.10.0. Please use 
+      'megatron.core.extensions.transformer_engine' instead.
+    from megatron.core.transformer.custom_layers.transformer_engine import (
+
+../training-deps/mcore/megatron/core/models/gpt/gpt_layer_specs.py:76
+  /home/w00899129/pr492-native18915-1024.2J8cpo/training-deps/mcore/megatron/core/models/gpt/gpt_layer_specs.py:76: UserWarning: Apex is not installed. Falling back to Torch Norm
+    warnings.warn("Apex is not installed. Falling back to Torch Norm")
+
+../training-deps/mcore/megatron/core/models/retro/encoder_spec.py:49
+  /home/w00899129/pr492-native18915-1024.2J8cpo/training-deps/mcore/megatron/core/models/retro/encoder_spec.py:49: UserWarning: Apex is not installed. Falling back to Torch Norm
+    warnings.warn(f'Apex is not installed. Falling back to Torch Norm')
+
+../training-deps/mcore/megatron/core/models/retro/decoder_spec.py:39
+  /home/w00899129/pr492-native18915-1024.2J8cpo/training-deps/mcore/megatron/core/models/retro/decoder_spec.py:39: UserWarning: Apex is not installed. Falling back to Torch Norm
+    warnings.warn(f"Apex is not installed. Falling back to Torch Norm")
+
+../python-deps/modelopt/torch/__init__.py:36
+  /home/w00899129/pr492-native18915-1024.2J8cpo/python-deps/modelopt/torch/__init__.py:36: UserWarning: transformers version 5.14.1 is not tested with nvidia-modelopt and may cause issues. Please install recommended version with `pip install nvidia-modelopt[hf]` if working with HF models.
+    _warnings.warn(
+
+../training-deps/mcore/megatron/rl/inference/inference_interface.py:30
+  /home/w00899129/pr492-native18915-1024.2J8cpo/training-deps/mcore/megatron/rl/inference/inference_interface.py:30: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.14/migration/
+    class InferenceInterface(BaseModel):
+
+../training-deps/mcore/megatron/rl/__init__.py:55
+  /home/w00899129/pr492-native18915-1024.2J8cpo/training-deps/mcore/megatron/rl/__init__.py:55: PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.14/migration/
+    cls.Library.type_names[register_type.__fields__['type_name'].default] = register_type
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+============================== slowest durations ===============================
+56.87s call     tests/test_sparse_hccl.py::test_distributed_sparse_hccl_matches_full
+0.01s setup    tests/test_sparse_hccl.py::test_distributed_sparse_hccl_matches_full
+
+(1 durations < 0.005s hidden.  Use -vv to show these durations.)
+=========== 1 passed, 33 deselected, 27 warnings in 83.08s (0:01:23) ===========

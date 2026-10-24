@@ -1,0 +1,31 @@
+{
+  "native_pr18915_head": "f6ad8bd53aeb81a419e371a856288000e4d498db",
+  "dependency_patches": {
+    "vllm.patch": {
+      "pinned_base": "e6bfe03ad73a3330cb427885aa90d97a12e1c704",
+      "apply": "PASS",
+      "syntax": "PASS",
+      "files": 10,
+      "native_verbatim_files": [],
+      "sha256": "cd18c39d4c0d40ed77e92c0d2bd02f6e415a56c12433228356c0b3f654047274"
+    },
+    "vllm-ascend.patch": {
+      "pinned_base": "fd815467c221ee600137f6bdd53fe354d5e7c999",
+      "apply": "PASS",
+      "syntax": "PASS",
+      "files": 15,
+      "native_verbatim_files": [
+        "examples/rl/rlhf_sparse_hccl.py",
+        "tests/e2e/pull_request/eight_card/test_sparse_hccl_checkpoint.py",
+        "tests/ut/distributed/weight_transfer/test_sparse_hccl_engine.py",
+        "vllm_ascend/distributed/weight_transfer/sparse_hccl_engine.py"
+      ],
+      "sha256": "43c25ce96de3f4be0f3d628fe2748e7a1a97dc543e1937e1fc85ec2ce03c022c"
+    }
+  },
+  "common_vllm_patch_unchanged": true,
+  "vime_direct_exporter_absent": true,
+  "ascend_moe_direct_absent": true,
+  "seed_and_delta_public_send_weight_chunk": true,
+  "cpu_contract_tests": 20
+}
