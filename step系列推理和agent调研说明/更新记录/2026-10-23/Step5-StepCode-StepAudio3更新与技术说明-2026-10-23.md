@@ -132,9 +132,9 @@ Step-Code 是本区间**唯一持续更新**的对象。日期以进入 `main` �
 
 **可直接落地（可用）**
 
-- **top-k 确定性 / 平票规则**（上游 §1.2 第 4 条）：本项目 `vllm/vllm-ascend-step4/vllm/envs.py` 的 `VLLM_STEP5_DSA_FORCE_STABLE_TOPK: bool = True`（**默认已 True**，注释写明 streaming selector 在 SM90 上不确定）；默认值断言在 `tests/test_envs.py:66`；NPU 侧确定性来源是 `vllm_ascend/models/step5/indexer_region_score.py`（`top_k` + `sort_mode=1` 升序、`mask_mode=3` 因果）与 `generic_block_sparse_attention.py:58` 的 `_append_current_region_kernel`（升序追加、不挤掉选中项）。→ 动作见 2.4 P0-1。
+- **top-k 确定性 / 平票规则**（上游 1.2 第 4 条）：本项目 `vllm/vllm-ascend-step4/vllm/envs.py:292` 声明 `VLLM_STEP5_DSA_FORCE_STABLE_TOPK: bool = True`（**默认已 True**），读取逻辑在同文件 `:1974-1975`（缺省按 `"true"` 解析），实际使用点 `vllm/models/step5/sparse_attention.py:1234 / 1703 / 1705 / 3171 / 4071` 与 `vllm/models/step5/kernels.py:219`；默认值断言 `tests/test_envs.py:66-75`（删环境变量后必须为 `True`）。NPU 侧确定性来源：`vllm_ascend/models/step5/indexer_region_score.py:82/88`（`mask_mode=3` 因果 + `sort_mode=1` 升序）与 `generic_block_sparse_attention.py:58` 的 `_append_current_region_kernel`（Triton 版在 `models/step5/dsa_kernels.py:2267`，升序追加、不挤掉选中项）。→ 动作见 2.4 P0-1。
 - **测试矩阵平移**：上游 top-k=2/7/512、page boundary、打包 scales 三张表正是 `indexer_region_score` + GBSA 最易出契约错的维度；本项目落点 `vllm/vllm-ascend-step4/tests/kernels/core/test_step5_*.py`、`tests/v1/attention/test_step5_{mtp_state_machine,sparse_summary_cache}.py`、`vllm-ascend/.../tests/ut/models/test_step5_model.py`、`tests/e2e/nightly/.../test_step5_decode_sparse_meta.py`。
-- **上下文治理方法论**：以"只追加保前缀"（#293 + 10-19 notices）为验收模板，在本项目记 `prefix_match_unit`、命中 token、重算 block、sidecar 是否重建（`kv_pool/ascend_store/pool_scheduler.py:121`、`pool_worker.py:172`）。
+- **上下文治理方法论**：以"只追加保前缀"（#293 + 10-19 notices）为验收模板，在本项目记 `prefix_match_unit`、命中 token、重算 block、sidecar 是否重建（`kv_pool/ascend_store/pool_scheduler.py:121`、`pool_worker.py:172`；同一文件在上游干净镜像 `_ml/` 里是 `:146`/`:262`——**行号随检出不同，引用时必须带检出名**）。对齐校验在 `vllm/models/step5/sparse_attention.py:1242-1251`（`prefix_match_unit` 必须是 sparse region block 的整数倍，否则直接报错）。
 
 **部分可用（语义可迁移，实现不可移植）**
 
