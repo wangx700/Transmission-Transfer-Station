@@ -46,3 +46,7 @@
 ## Qwen3-30B-A3B 稀疏权重同步
 
 - [Megatron → HF → 推理侧权重分片与 slot 六元组](qwen3-30b-megatron-hf-sparse-sync/README.md)：TP2/PP2/EP2 下的 QKV、MoE name/shape、训练与推理并行差异、NaN probe 操作示例、可运行教学脚本及代码证据。
+
+## MoE 专家计算说明
+
+- [gate/up/down 计算与专家权重命名](MoE专家计算说明/README.md)：Qwen3-30B-A3B 的 SwiGLU、fc1/fc2融合、ETP2计算分解、router与专家gate的区别，以及weight6的本地编号含义。
