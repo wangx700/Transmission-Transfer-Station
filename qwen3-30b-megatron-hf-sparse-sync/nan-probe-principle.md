@@ -110,6 +110,72 @@ gather_group包含这两个rank时，合并端得到同一个HF Q slot下两边�
 
 代码依据：[VIME导出与进程组选择](evidence/vime-export.txt)中的`build_export_index`；真实合并接口为源文件`vime/backends/megatron_utils/update_weight/delta_sync/sparse_gather.py`中的`gather_slot_entries_to_rank0(idx_concat, val_concat, counts, group, ...)`，由发送层消费六元组中的group并调用。现有[verl接口证据](evidence/verl-checkpoint-interface.txt)展示了`gq.put(pg, slots, dtype_str, counts, hf_idx, hf_val)`的接线。
 
+### 3.5 probe、slots、gather_group各自负责什么
+
+**probe负责“把本地变化转到HF坐标”，slots负责“给这些结果提供固定名称、shape和分段顺序”，gather_group负责“指定哪些rank一起合并贡献”。** 真正的合并由消费该进程组的集合通信代码完成，不是ProcessGroup对象自己完成。
+
+初始化slots时通常使用空变化跑一次probe，从输出中读取HF name和shape；再交换各rank的目录元数据，使同一参数目录行的slot顺序一致。这里不需要真实变化值，目的是提前问mapping“你会输出哪些HF张量”。
+
+例如一条Megatron QKV参数对应：
+
+```python
+slots = [
+    ('model.layers.0.self_attn.q_proj.weight', (4096, 2048)),
+    ('model.layers.0.self_attn.k_proj.weight', (512, 2048)),
+    ('model.layers.0.self_attn.v_proj.weight', (512, 2048)),
+]
+# 为说明固定为Q/K/V顺序，实际顺序以缓存目录为准。
+counts = [2, 1, 0]
+hf_idx = [q_index0, q_index1, k_index0]
+hf_val = [q_value0, q_value1, k_value0]
+```
+
+合并代码据此知道前2项归Q、随后1项归K、V为空。每个index相对于自己所属HF张量，不是三者拼接后的统一偏移。
+
+EP场景下，同一目录行在不同rank可能输出专家6、专家70等不同名称；PP非owner甚至没有该参数。交换slot目录后，大家使用同一列表，不属于自己的slot填写零count，才能按位置正确合并。
+
+缓存slots还能让无变化参数直接返回零counts，跳过probe，并避免每轮重新交换目录。它只缓存name、完整shape和顺序，**不缓存“Megatron本地每个元素对应哪个HF元素”的完整映射表**。
+
+### 3.6 缓存之后，每轮是否仍执行实际转换
+
+**通用NaN probe路径中，后续非空变化仍执行mapping的实际转换逻辑；不能仅凭slots把Megatron diff直接变成HF diff。** 缓存的是转换对象和输出目录，不是所有元素的坐标对应关系。
+
+```text
+Megatron diff：local_indices + current_values
+  → 本地NaN底板
+  → probe.megatron_to_hf：真实拆分、拼接、重排，模拟gather
+  → 提取非NaN位置
+  → HF indices + current_values
+```
+
+例如slots只告诉你存在Q、K、V三个输出及其shape；它本身不能告诉你Megatron本地index7应落到HF Q的index4194311。该坐标需要通过转换逻辑或另行适配的坐标公式得到。
+
+需要区分当前核对的两份本地实现：
+
+表注：以下是本目录证据对应的本地分支，不代表所有上游版本；无变化参数且slots已缓存时，两者都可返回零count而不跑probe。SGLang/vLLM在此指推理接收端。
+
+| 实现 | 非空变化的处理 | 边界 |
+|---|---|---|
+| 本地verl训练导出 | 填NaN底板并调用probe.megatron_to_hf | 没有此VIME的_direct_hf_delta_entry快路径 |
+| 本地VIME训练导出 | 先尝试直接坐标映射，不支持则回退probe | 仅覆盖明确适配的mapping与shape |
+| SGLang / vLLM推理侧 | 接收已转换的HF坐标并加载 | 不调用训练侧Megatron→HF的_direct_hf_delta_entry |
+
+VIME快路径的调用逻辑是：
+
+```python
+if not force_probe and rec.slots is not None:
+    direct = _direct_hf_delta_entry(...)
+    if direct is not None:
+        return direct
+# 未命中时继续创建NaN底板、运行probe。
+```
+
+`_direct_hf_delta_entry`不是Bridge的通用接口，而是本地VIME的有限优化：支持符合条件的ColumnParallelMapping、RowParallelMapping、ReplicatedMapping、GatedMLPMapping，以及满足条件的AutoMapping内部具体实现。它按确定的坐标公式转换indices，遇到未知类型、额外permute或不符合条件的shape则返回None。并非按Qwen模型名写死，但也不覆盖任意mapping；当前该快路径没有直接列入QKVMapping。
+
+因此不能笼统写成“后续所有参数都必须跑probe”，也不能写成“初始化后所有Megatron diff都能直接映射”。准确描述是：**通用路径每轮执行转换；已适配的有限快路径可绕过NaN展开直接计算HF坐标；slots本身不提供逐元素映射。**
+
+代码依据：[VIME证据](evidence/vime-export.txt)中的`_direct_hf_delta_entry`与`mcore_hf_delta_entry`；[verl证据](evidence/verl-probe.txt)中的`mcore_hf_delta_entry`。
+
 ## 4. 方法具体如何替换
 
 本地`make_probe`中的关键操作是：
