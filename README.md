@@ -41,6 +41,8 @@
 
 ## Sparse HCCL 权重更新
 
+- [#492 原生兼容方案：类设计与使用说明](vime-sparse-hccl-492-native/README.md)：训练/推理均PP1，原生loader，无MoE直写；含三张类图、完整坐标seed说明和未执行的启动示例。
+
 - [PR #18915 当前版本时序图与接口说明（2026-10-24）](vllm-ascend-pr18915-sparse-hccl/04-current-sequence-20261024.md)：固定 `f6ad8bd5`，含独立 Mermaid 源文件及当前支持边界；旧版材料另行保留。
 - [VIME #492 优化候选与 #480 已验证流程](vime-sparse-hccl-492-480/README.md)：当前断点、优化时序、代码补丁、96项CPU回归、真实单NPU loader检查，以及188容器与历史性能口径。
 

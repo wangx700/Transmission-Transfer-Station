@@ -1,0 +1,47 @@
+classDiagram
+    direction TB
+    class Receiver["SparseHCCLWeightTransferEngine"] {
+        init_transfer_engine()
+        _validate_model_support()
+        update_weights()
+        shutdown()
+    }
+    class CommonReceiver["SparseNCCLWeightTransferEngine"] {
+        start_weight_update()
+        finish_weight_update()
+        receive_weights()
+    }
+    class EngineBase["WeightTransferEngine"] {
+        parse_update_info()
+        update_weights()
+    }
+    class HCCLHelper["HCCLWeightTransferEngine"] {
+        init_transfer_engine()
+        trainer_init()
+    }
+    class Comm["PyHcclCommunicator"] {
+        broadcast()
+        close()
+    }
+    class Loader["checkpoint_weight_patch module"] {
+        <<module>>
+        load_checkpoint_weight_patches()
+    }
+    class Views["checkpoint_loader_views"] {
+        <<function>>
+    }
+    class Model["运行时模型"] {
+        load_weights()
+    }
+    class Sender["SparseHCCLTrainerWeightTransferEngine"]
+
+    EngineBase <|-- CommonReceiver
+    CommonReceiver <|-- Receiver
+    Receiver ..> HCCLHelper : 复用建组方法
+    Sender ..> HCCLHelper : 复用建组方法
+    Receiver *-- Comm : 接收端点
+    Sender *-- Comm : 发送端点
+    CommonReceiver ..> Loader : 接收完chunk后调用
+    Receiver ..> Views : 包围公共更新入口
+    Views --> Model : 临时checkpoint视图
+    Loader --> Model : 原生load_weights

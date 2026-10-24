@@ -1,0 +1,25 @@
+classDiagram
+    direction LR
+    class CommonInit["SparseNCCLTrainerInitInfo"] {
+        master_address
+        master_port
+        world_size
+        rank
+    }
+    class Init["SparseHCCLTrainerInitInfo"] {
+        backend = sparse_hccl
+    }
+    class Patch["SparseWeightPatch"] {
+        name
+        full_shape
+        indices : int32 tensor
+        values : floating tensor
+    }
+    class Info["SparseNCCLWeightTransferUpdateInfo"] {
+        names
+        dtype_names
+        shapes
+        num_updates_list
+    }
+    CommonInit <|-- Init
+    Patch ..> Info : 提取元数据

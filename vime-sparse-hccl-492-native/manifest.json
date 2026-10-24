@@ -1,0 +1,25 @@
+{
+  "date": "2026-10-24 Asia/Shanghai",
+  "scope": "native #18915-compatible VIME caller design; training PP1; inference PP1; no MoE direct",
+  "vime_base_commit": "b7a462f5d7351627109ace757e88a9b01fe854a7",
+  "caller_snapshot": "uncommitted local native-compatible candidate; not the base commit content",
+  "engine_snapshot": "extracted from local dependency patch; read-only snapshot",
+  "installation": "source snapshots are reading evidence, not a complete installation package",
+  "validation": {
+    "new_npu_run": false,
+    "launcher_executed": false,
+    "launcher_bash_syntax": "PASS"
+  },
+  "files": {
+    "01-trainer-classes.mmd": "a199079ff3c9095235b5a07bc3f21a4e5874fa7e3d71605dbd2962cae9f7387c",
+    "02-receiver-classes.mmd": "e21708a98d9711618b74c1f375b8b2687b61d1022aad1a7b3ea7a214bc003aec",
+    "03-data-contract.mmd": "46efda508aca9f23c51c2b18a5c0bc075dab9508e8c800a54e51e795dead92d4",
+    "README.md": "edfcbc2f119487eb5e11e41dfc28892effdff0eb4137dc186b541ac092a0fbdd",
+    "run-qwen3-30b-pp1-native-example.sh": "4a9d8e726ad2657efc9176183581d75cb764ee7a16f12a33155cf2bb4e9da0ea",
+    "source/common.py": "db9404bda38330175ecc0a8e54ba53b0199780c38a55aac0fcd4084b61e5ad2c",
+    "source/hf_weight_iterator_sparse_bridge.py": "554048fdcc717ef924247a17c4c3e6ee5bb955291056c7c03f07d6c61a6d10c5",
+    "source/LICENSE": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "source/sparse_hccl_engine.py": "d915617d3b2f74ca940fe6cd365a16d985d6afc9cf4a1bcc9676c7dc8d4890af",
+    "source/update_weight_from_sparse_hccl.py": "c7f76934759bce6a98ee4fa4c66b1fdafc28922263c1712682812fa48c23f396"
+  }
+}

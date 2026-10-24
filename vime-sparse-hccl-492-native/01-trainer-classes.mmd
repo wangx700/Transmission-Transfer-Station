@@ -1,0 +1,66 @@
+classDiagram
+    direction TB
+    class Updater["UpdateWeightFromSparseHCCL"] {
+        _seeded
+        _snapshots
+        _failed
+        weight_version
+        connect_rollout_engines()
+        update_weights()
+        _send_seed()
+        _send_sparse_delta()
+        _publish_flush()
+        disconnect_rollout_engines()
+    }
+    class Client["VimeRayWeightSyncClient"] {
+        init_weight_transfer_engine()
+        start_weight_update()
+        update_weights()
+        finish_weight_update()
+    }
+    class Protocol["VLLMWeightSyncClient"] {
+        <<interface>>
+    }
+    class Bridge["HfWeightIteratorSparseBridge"] {
+        model_context()
+        get_hf_weight_chunks()
+    }
+    class Queue["_GatherQueue"] {
+        put()
+        flush_all()
+    }
+    class Workspace["GatherWorkspace"] {
+        tensor()
+    }
+    class Bucket["_SparseFlushBucket"] {
+        capacity
+        patches
+        add()
+        flush()
+    }
+    class Sender["SparseHCCLTrainerWeightTransferEngine"] {
+        trainer_init()
+        _broadcast_chunk()
+        _post_send_sync()
+        shutdown()
+    }
+    class CommonSender["SparseNCCLTrainerWeightTransferEngine"] {
+        send_weights()
+        send_weight_chunk()
+        _prepare_patches()
+    }
+    class TrainerBase["TrainerWeightTransferEngine"]
+    class Rollout["VLLMEngine"]
+
+    Protocol <|.. Client : 结构化协议实现
+    TrainerBase <|-- CommonSender
+    CommonSender <|-- Sender
+    Updater *-- Client : 持有
+    Updater *-- Sender : 训练rank0持有
+    Updater *-- Bridge : 导出索引与首轮完整导出
+    Updater ..> Queue : 稳态创建
+    Updater ..> Bucket : 创建和发布
+    Queue o-- Workspace : 复用缓冲
+    Queue ..> Bucket : gather结果回调
+    Sender --> Protocol : client
+    Client --> Rollout : Ray RPC
