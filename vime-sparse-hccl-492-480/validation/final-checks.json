@@ -1,0 +1,18 @@
+{
+  "vllm.patch": {
+    "pinned_base": "e6bfe03ad73a3330cb427885aa90d97a12e1c704",
+    "apply_check": "PASS",
+    "source_equivalence": "PASS",
+    "syntax": "PASS",
+    "files": 10,
+    "sha256": "bb006a31534a07b0cb203f570e4d2b2780decfb18c929fd084c04efa70c0376c"
+  },
+  "vllm-ascend.patch": {
+    "pinned_base": "fd815467c221ee600137f6bdd53fe354d5e7c999",
+    "apply_check": "PASS",
+    "source_equivalence": "PASS",
+    "syntax": "PASS",
+    "files": 18,
+    "sha256": "791b2e6b35082a641f72699cb2e3cd8d342cfed0f14584dde41b473818509ad0"
+  }
+}

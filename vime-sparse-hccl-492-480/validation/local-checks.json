@@ -1,0 +1,12 @@
+{
+  "date": "2026-10-24 Asia/Shanghai",
+  "cpu_pytest": {
+    "passed": 96,
+    "scope": "isolated accelerator/bootstrap imports; real CPU tensor operations; no HCCL execution",
+    "last_session_seconds": 0.2
+  },
+  "ruff": "PASS using dependency-specific configs",
+  "npu": "single NPU loader only; result and raw log supplied",
+  "candidate_distributed_hccl_pp": "NOT RUN",
+  "candidate_30b_performance": "NOT RUN"
+}

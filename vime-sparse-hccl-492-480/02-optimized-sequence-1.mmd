@@ -1,0 +1,61 @@
+sequenceDiagram
+    autonumber
+    participant A as VIME Actor
+    participant U as Sparse Updater
+    participant M as All Megatron Ranks
+    participant T as HCCL Sender rank0
+    participant W as All Inference Workers
+    participant L as Checkpoint Loader
+    A->>U: connect_rollout_engines
+    par 初始化控制面
+        T->>W: init_weight_transfer_engine(rank_offset=1)
+    and 初始化数据面
+        T->>T: HCCL trainer_init(rank=0)
+    end
+    Note over T,W: 单推理组为 1+TP*PP*DP；EP不额外相乘
+    A->>A: offload_train 时唤醒训练权重
+    A->>U: update_weights
+    U->>W: pause_generation / flush_cache / start_weight_update
+    U->>M: build_export_index / validate_export_weights
+    alt 首次或重连后的 dense seed
+        U->>M: HfWeightIteratorDirect 全量导出
+        M-->>T: 所有rank参与导出，仅rank0发送
+        loop 每个全量chunk
+            par 元数据RPC
+                T->>W: update_weights(dense=true)
+            and HCCL广播
+                T->>W: 完整values，无indices
+            end
+            W->>W: 完整接收后过滤非本PP参数
+            W->>L: dense CheckpointWeightPatch
+            L->>L: loader view / native load / restore view
+            W-->>T: 应用与设备同步完成
+        end
+        U->>M: prime_delta_snapshots
+    else 后续 sparse steady update
+        M->>M: diff / compact / HF checkpoint坐标映射
+        M->>T: 一致collective顺序批量gather
+        T->>T: 按dtype与字节预算分桶
+        loop 每个sparse chunk
+            T->>T: 结构检查 / 按设备批量数值校验 / 规范化
+            par 元数据RPC
+                T->>W: update_weights(names/shapes/counts)
+            and HCCL广播
+                T->>W: 每patch的int32 indices
+                T->>W: 每patch的values
+            end
+            W->>W: 完整接收后再做PP过滤
+            W->>L: load_checkpoint_weight_patches
+            L->>L: int64边界比较 / 重复索引 / NaN校验
+            opt MoE direct开启且满足BF16 ND静态EP等条件
+                L->>L: TP/EP映射 / 按w13,w2分组 / 原地覆盖
+            end
+            L->>L: 剩余patch NaN staging / loader view / native load
+            W-->>T: 应用与设备同步完成
+            T->>T: 等待RPC / 同步发送stream
+        end
+    end
+    U->>M: 汇总错误状态
+    U->>W: finish_weight_update(version) / continue_generation
+    U-->>A: 同步完成
+    A->>A: offload_train 时休眠训练权重

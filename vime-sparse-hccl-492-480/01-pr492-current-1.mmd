@@ -1,0 +1,21 @@
+sequenceDiagram
+    autonumber
+    participant A as VIME Actor
+    participant U as Sparse Updater
+    participant T as Trainer rank0
+    participant W as Inference Workers
+    A->>U: connect_rollout_engines
+    par 接收端初始化
+        T->>W: init_weight_transfer_engine
+        W->>W: _validate_model_support
+        Note over W: PP>1 抛出 NotImplementedError
+    and 发送端初始化
+        T->>T: HCCL rank0 rendezvous
+    end
+    opt PP1 初始化成功
+        A->>U: update_weights
+        U->>W: pause / flush / start
+        U->>U: HfWeightIteratorDirect 全量导出
+        U->>T: send_dense_weight_chunk
+        Note over U,T: wrapper 和父类没有该方法
+    end

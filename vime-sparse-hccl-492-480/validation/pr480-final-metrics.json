@@ -1,0 +1,8 @@
+{
+  "batch_off_gain_percent": 28.053609503502898,
+  "batch_on_gain_percent": 41.329258976317796,
+  "direct_gain_after_batch_percent": 34.97036409822184,
+  "batch_direct_vs_full_gain_percent": 14.28571428571428,
+  "full_seed_plus_three_s": 277.9,
+  "batch_direct_seed_plus_three_s": 276.0
+}

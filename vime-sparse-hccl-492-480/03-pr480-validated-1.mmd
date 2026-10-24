@@ -1,0 +1,44 @@
+sequenceDiagram
+    autonumber
+    participant U as VIME Sparse Updater
+    participant M as Megatron Ranks
+    participant T as Trainer Sender rank0
+    participant W as TP2 PP2 EP2 Workers
+    participant L as Checkpoint Loader
+    par 建立HCCL通信组
+        T->>W: 并发初始化接收端
+    and
+        T->>T: 建立rank0端点
+    end
+    U->>W: pause / flush / start
+    alt seed
+        U->>M: HfWeightIteratorDirect 全量导出
+        M->>T: 全量chunk
+        par
+            T->>W: dense元数据RPC
+        and
+            T->>W: 完整values广播
+        end
+        W->>W: 完整接收后PP过滤
+        W->>L: dense原生加载及视图恢复
+        W-->>T: 设备完成
+        U->>M: 建立快照
+    else steady
+        M->>M: snapshot diff / HF坐标映射
+        M->>T: 统一顺序批量gather
+        T->>T: 分桶 / 批量校验 / 设备规范化
+        par
+            T->>W: sparse元数据RPC
+        and
+            T->>W: 每patch indices + values广播
+        end
+        W->>W: 完整接收后PP过滤
+        W->>L: 公共patch校验
+        opt direct开启且满足支持条件
+            L->>L: 本地TP/EP MoE分组直写
+        end
+        L->>L: 剩余patch NaN staging / 原生加载 / 恢复视图
+        W-->>T: 应用及设备同步完成
+    end
+    T-->>U: send完成
+    U->>W: finish(version) / resume

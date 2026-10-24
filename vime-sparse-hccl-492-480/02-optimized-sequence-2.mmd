@@ -1,0 +1,12 @@
+sequenceDiagram
+    participant U as Updater
+    participant M as Training Ranks
+    participant W as Inference Workers
+    U->>M: 汇总error与payload_started
+    alt payload尚未开始且清理成功
+        U->>W: 结束旧会话并恢复生成
+        U->>U: 清快照 / needs_reconnect / 下次dense seed
+    else payload可能已开始或finish失败
+        U->>U: 标记_failed，拒绝继续复用
+        Note over U,W: 不主动恢复生成；排查并重连/重启后dense seed
+    end

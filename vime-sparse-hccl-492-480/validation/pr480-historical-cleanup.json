@@ -1,0 +1,28 @@
+{
+  "container": "cjy-pr480-opt188-r2",
+  "jobs": [
+    {
+      "submission_id": "raysubmit_NgppT5yQgF7Ad48j",
+      "status": "SUCCEEDED"
+    },
+    {
+      "submission_id": "raysubmit_GSSE1PWu7qVc7qQJ",
+      "status": "SUCCEEDED"
+    },
+    {
+      "submission_id": "raysubmit_mBSB8rGwSRVhzi6u",
+      "status": "SUCCEEDED"
+    },
+    {
+      "submission_id": "raysubmit_3NW6Nh9t9hZSLT51",
+      "status": "SUCCEEDED"
+    },
+    {
+      "submission_id": "raysubmit_6X53Vr3Qd4TyupmE",
+      "status": "SUCCEEDED"
+    }
+  ],
+  "stopped": true,
+  "container_exit_code": 137,
+  "note": "Container shutdown code is cleanup, not a benchmark result; benchmark/client exits were audited before shutdown."
+}

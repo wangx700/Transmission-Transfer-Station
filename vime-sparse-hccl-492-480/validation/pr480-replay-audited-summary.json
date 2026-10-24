@@ -1,0 +1,270 @@
+{
+  "scope": "Identical payload legacy versus batched sender validation ABBA; MoE direct writes always ON. Non-packed public send_weight_chunk; elapsed includes validation, transport and apply. Export/diff/gather and correctness audits excluded. Diagnostic passes are separate.",
+  "runs": [
+    {
+      "validation_batched": false,
+      "send_validate_receive_apply_s": 132.9449929239927,
+      "all_rank_hashes_equal": true
+    },
+    {
+      "validation_batched": true,
+      "send_validate_receive_apply_s": 34.66632970498176,
+      "all_rank_hashes_equal": true
+    },
+    {
+      "validation_batched": true,
+      "send_validate_receive_apply_s": 33.55274382000789,
+      "all_rank_hashes_equal": true
+    },
+    {
+      "validation_batched": false,
+      "send_validate_receive_apply_s": 135.70204628800275,
+      "all_rank_hashes_equal": true
+    }
+  ],
+  "legacy_mean_s": 134.32351960599772,
+  "batch_mean_s": 34.10953676249483,
+  "reduction_percent": 74.60643016014912,
+  "normal_reference_tokens": [
+    [
+      [
+        2796,
+        315,
+        279,
+        17097
+      ],
+      "length"
+    ]
+  ],
+  "normal_restoration_passed": true,
+  "senders": [
+    {
+      "calls": {
+        "sender_broadcast": 1,
+        "sender_validate": 1,
+        "sender_wait_apply": 1
+      },
+      "role": "sender",
+      "seconds": {
+        "sender_broadcast": 5.27248182403855,
+        "sender_validate": 116.67050768202171,
+        "sender_wait_apply": 11.10883330903016
+      }
+    },
+    {
+      "calls": {
+        "sender_broadcast": 1,
+        "sender_validate": 1,
+        "sender_wait_apply": 1
+      },
+      "role": "sender",
+      "seconds": {
+        "sender_broadcast": 3.662792933988385,
+        "sender_validate": 18.323386321950238,
+        "sender_wait_apply": 10.849080414976925
+      }
+    }
+  ],
+  "receivers": [
+    {
+      "calls": {
+        "receiver_apply": 1,
+        "receiver_load_host_dispatch": 5,
+        "receiver_moe_direct_host_dispatch": 1,
+        "receiver_pp_filter": 1,
+        "receiver_receive": 1,
+        "receiver_staging_host_dispatch": 219,
+        "receiver_validate_host_dispatch": 1
+      },
+      "dense": false,
+      "device": "npu:1",
+      "dp_rank": 0,
+      "rank": 1,
+      "role": "receiver",
+      "seconds": {
+        "receiver_apply": 9.943090879998636,
+        "receiver_load_host_dispatch": 0.04033772594993934,
+        "receiver_moe_direct_host_dispatch": 1.019969494023826,
+        "receiver_pp_filter": 0.14577951497631148,
+        "receiver_receive": 5.167078385013156,
+        "receiver_staging_host_dispatch": 0.014177911507431418,
+        "receiver_validate_host_dispatch": 8.735919084982015
+      }
+    },
+    {
+      "calls": {
+        "receiver_apply": 1,
+        "receiver_load_host_dispatch": 5,
+        "receiver_moe_direct_host_dispatch": 1,
+        "receiver_pp_filter": 1,
+        "receiver_receive": 1,
+        "receiver_staging_host_dispatch": 219,
+        "receiver_validate_host_dispatch": 1
+      },
+      "dense": false,
+      "device": "npu:0",
+      "dp_rank": 0,
+      "rank": 0,
+      "role": "receiver",
+      "seconds": {
+        "receiver_apply": 10.476816534006502,
+        "receiver_load_host_dispatch": 0.04357884498313069,
+        "receiver_moe_direct_host_dispatch": 0.8965021920157596,
+        "receiver_pp_filter": 0.14335204003145918,
+        "receiver_receive": 5.1702302459743805,
+        "receiver_staging_host_dispatch": 0.02106384135549888,
+        "receiver_validate_host_dispatch": 9.395533605013043
+      }
+    },
+    {
+      "calls": {
+        "receiver_apply": 1,
+        "receiver_load_host_dispatch": 5,
+        "receiver_moe_direct_host_dispatch": 1,
+        "receiver_pp_filter": 1,
+        "receiver_receive": 1,
+        "receiver_staging_host_dispatch": 219,
+        "receiver_validate_host_dispatch": 1
+      },
+      "dense": false,
+      "device": "npu:3",
+      "dp_rank": 0,
+      "rank": 3,
+      "role": "receiver",
+      "seconds": {
+        "receiver_apply": 10.44045145297423,
+        "receiver_load_host_dispatch": 0.04346119600813836,
+        "receiver_moe_direct_host_dispatch": 1.047073238005396,
+        "receiver_pp_filter": 0.19354055199073628,
+        "receiver_receive": 5.140942713012919,
+        "receiver_staging_host_dispatch": 0.020495314965955913,
+        "receiver_validate_host_dispatch": 9.165311158983968
+      }
+    },
+    {
+      "calls": {
+        "receiver_apply": 1,
+        "receiver_load_host_dispatch": 5,
+        "receiver_moe_direct_host_dispatch": 1,
+        "receiver_pp_filter": 1,
+        "receiver_receive": 1,
+        "receiver_staging_host_dispatch": 219,
+        "receiver_validate_host_dispatch": 1
+      },
+      "dense": false,
+      "device": "npu:2",
+      "dp_rank": 0,
+      "rank": 2,
+      "role": "receiver",
+      "seconds": {
+        "receiver_apply": 10.892669200024102,
+        "receiver_load_host_dispatch": 0.046565658994950354,
+        "receiver_moe_direct_host_dispatch": 1.014006456010975,
+        "receiver_pp_filter": 0.14765224000439048,
+        "receiver_receive": 5.167194872978143,
+        "receiver_staging_host_dispatch": 0.015792196383699775,
+        "receiver_validate_host_dispatch": 9.68869949504733
+      }
+    },
+    {
+      "calls": {
+        "receiver_apply": 1,
+        "receiver_load_host_dispatch": 5,
+        "receiver_moe_direct_host_dispatch": 1,
+        "receiver_pp_filter": 1,
+        "receiver_receive": 1,
+        "receiver_staging_host_dispatch": 219,
+        "receiver_validate_host_dispatch": 1
+      },
+      "dense": false,
+      "device": "npu:1",
+      "dp_rank": 0,
+      "rank": 1,
+      "role": "receiver",
+      "seconds": {
+        "receiver_apply": 10.37305610300973,
+        "receiver_load_host_dispatch": 0.03554728691233322,
+        "receiver_moe_direct_host_dispatch": 0.8886232300428674,
+        "receiver_pp_filter": 0.1439472389756702,
+        "receiver_receive": 3.55477573297685,
+        "receiver_staging_host_dispatch": 0.013482025940902531,
+        "receiver_validate_host_dispatch": 9.296295910025947
+      }
+    },
+    {
+      "calls": {
+        "receiver_apply": 1,
+        "receiver_load_host_dispatch": 5,
+        "receiver_moe_direct_host_dispatch": 1,
+        "receiver_pp_filter": 1,
+        "receiver_receive": 1,
+        "receiver_staging_host_dispatch": 219,
+        "receiver_validate_host_dispatch": 1
+      },
+      "dense": false,
+      "device": "npu:0",
+      "dp_rank": 0,
+      "rank": 0,
+      "role": "receiver",
+      "seconds": {
+        "receiver_apply": 10.531798845971934,
+        "receiver_load_host_dispatch": 0.03480218903860077,
+        "receiver_moe_direct_host_dispatch": 0.9686836930341087,
+        "receiver_pp_filter": 0.14587969303829595,
+        "receiver_receive": 3.556343203992583,
+        "receiver_staging_host_dispatch": 0.014632618986070156,
+        "receiver_validate_host_dispatch": 9.381037985964213
+      }
+    },
+    {
+      "calls": {
+        "receiver_apply": 1,
+        "receiver_load_host_dispatch": 5,
+        "receiver_moe_direct_host_dispatch": 1,
+        "receiver_pp_filter": 1,
+        "receiver_receive": 1,
+        "receiver_staging_host_dispatch": 219,
+        "receiver_validate_host_dispatch": 1
+      },
+      "dense": false,
+      "device": "npu:3",
+      "dp_rank": 0,
+      "rank": 3,
+      "role": "receiver",
+      "seconds": {
+        "receiver_apply": 10.508536131004803,
+        "receiver_load_host_dispatch": 0.05007090501021594,
+        "receiver_moe_direct_host_dispatch": 1.0037399680004455,
+        "receiver_pp_filter": 0.20647485100198537,
+        "receiver_receive": 3.527769218024332,
+        "receiver_staging_host_dispatch": 0.017431159678380936,
+        "receiver_validate_host_dispatch": 9.230600529001094
+      }
+    },
+    {
+      "calls": {
+        "receiver_apply": 1,
+        "receiver_load_host_dispatch": 5,
+        "receiver_moe_direct_host_dispatch": 1,
+        "receiver_pp_filter": 1,
+        "receiver_receive": 1,
+        "receiver_staging_host_dispatch": 219,
+        "receiver_validate_host_dispatch": 1
+      },
+      "dense": false,
+      "device": "npu:2",
+      "dp_rank": 0,
+      "rank": 2,
+      "role": "receiver",
+      "seconds": {
+        "receiver_apply": 10.622253944980912,
+        "receiver_load_host_dispatch": 0.050021565053611994,
+        "receiver_moe_direct_host_dispatch": 1.0211225129896775,
+        "receiver_pp_filter": 0.1532710649771616,
+        "receiver_receive": 3.550973054021597,
+        "receiver_staging_host_dispatch": 0.016600089380517602,
+        "receiver_validate_host_dispatch": 9.414815335010644
+      }
+    }
+  ]
+}

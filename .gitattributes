@@ -4,3 +4,8 @@
 # Preserve published artifact checksums and raw pytest traceback whitespace.
 vllm-ascend-pr18915-sparse-hccl/** -text whitespace=cr-at-eol
 vllm-ascend-pr18915-sparse-hccl/**/*.log -whitespace
+
+# Preserve sparse HCCL evidence, nested patches and their published checksums.
+vime-sparse-hccl-492-480/** -text
+vime-sparse-hccl-492-480/**/*.patch -whitespace
+vime-sparse-hccl-492-480/**/*.log -whitespace

@@ -1,0 +1,30 @@
+{
+  "status": "PASS",
+  "scope": "real single-NPU loader kernels; no HCCL or distributed model execution",
+  "torch": "2.10.0+cpu",
+  "torch_npu": "2.10.0.post4",
+  "bounds": [
+    {
+      "numel": 2147483647,
+      "candidate_accepts_valid_indices": true,
+      "old_int32_comparison_rejects": false
+    },
+    {
+      "numel": 2147483648,
+      "candidate_accepts_valid_indices": true,
+      "old_int32_comparison_rejects": false
+    },
+    {
+      "numel": 2147483649,
+      "candidate_accepts_valid_indices": true,
+      "old_int32_comparison_rejects": false
+    }
+  ],
+  "bf16_dense_then_sparse": [
+    0,
+    2,
+    3,
+    7
+  ],
+  "invalid_bounds_rejected": true
+}
